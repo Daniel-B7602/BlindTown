@@ -1,0 +1,7 @@
+# Ignorar ejecutables de LOVE y carpetas de compilación
+*.exe
+*.love
+
+# Ignorar archivos del sistema
+.DS_Store
+Thumbs.db
