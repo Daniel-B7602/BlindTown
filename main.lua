@@ -6,29 +6,13 @@ local mapa
 local debug_colisiones = false
 local gameState = "menu" -- "menu" o "play"
 
--- Estructura del jugador y sus estados
--- Estructura del jugador y sus estados
-local jugador = {
-    x = 400,
-    y = 300,
-    velocidad = 150,
-    direccion = "down", -- "up", "down", "left", "right"
-    estado = "idle",    -- "idle", "run", "attack"
-    escala = 1.5,
-    col_w = 12,         -- Ancho de la caja de colisión (pies)
-    col_h = 8,          -- Alto de la caja de colisión (pies)
-    inventory = {},     -- Inventario del jugador
-    vida = 3,           -- Salud actual del jugador (3 corazones)
-    selectedSlot = nil, -- Ranura de inventario seleccionada
-    equipo = nil,       -- Ítem equipado (ej. "bat")
-    tiempoInmune = 0,   -- Periodo de inmunidad tras recibir daño
-    tiempoAtaque = 0,   -- Tiempo transcurrido en animación de ataque
-    cuadroAtaque = 1,   -- Fotograma actual del ataque
-    golpeDetectado = false -- Bandera para procesar daño una única vez por swing
-}
+-- Módulos de juego (Alex y Zombie) refactorizados
+local alexModule = require("alex")
+local zombieModule = require("zombie")
 
--- Alias global para acceder como alex.inventory
+local jugador = alexModule.jugador
 local alex = jugador
+local zombi = zombieModule.zombi
 
 -- Lista global de rectángulos colisionables
 local colisionables = {}
@@ -66,25 +50,6 @@ local SLOT_SIZE = 20  -- Tamaño de cada celda en píxeles originales del sprite
 local heartFullImage
 local heartEmptyImage
 
--- Estructura del Zombi enemigo
-local zombi = {
-    x = 580,
-    y = 300,
-    vida = 3,
-    velocidad = 50,
-    direccion = "left",
-    estado = "idle", -- "idle", "walk", "attack", "death"
-    escala = 1.5,
-    col_w = 12,
-    col_h = 8,
-    rangoDeteccion = 180,
-    cooldownAtaque = 1.5,
-    tiempoUltimoAtaque = 0,
-    tiempoFlashRed = 0,
-    tiempoMuerte = 0,
-    activo = false
-}
-
 -- Sistema de avisos/mensajes temporales en UI
 local messageTimer = 0
 local messageText = ""
@@ -94,14 +59,15 @@ local function mostrarMensaje(texto)
     messageTimer = 2.0
 end
 
--- Contenedor de las animaciones del juego
-local animaciones = {
+-- Hacer global las animaciones para que los módulos tengan acceso directo
+_G.animaciones = {
     tiempoAcumulado = 0,
-    velocidadEnmarcado = 0.12, -- Tiempo entre cuadros (un poco más rápido para correr)
+    velocidadEnmarcado = 0.12, -- Tiempo entre cuadros
     cuadroActual = 1,
     totalCuadros = 6,          -- Por defecto
     banco = {}                 -- Aquí guardaremos los spritesheets y sus quads
 }
+local animaciones = _G.animaciones
 
 -- Función auxiliar para cargar de manera estructurada cada tira de animación
 local function cargarAnimacion(estado, direccion, ruta, totalCuadros)
@@ -349,81 +315,41 @@ local function iniciarNivel(rutaMapa)
     cargarColisiones(mapa)
     cargarPickups(mapa)
     
-    if rutaMapa == "levels/mission01.lua" then
-        jugador.x = 424
-        jugador.y = 312
-    else
-        jugador.x = 400
-        jugador.y = 300
-    end
+    alexModule.iniciar(rutaMapa)
+    zombieModule.iniciar(rutaMapa, colisiona)
     
-    jugador.estado = "idle"
-    jugador.direccion = "down"
-    jugador.inventory = {}
-    jugador.vida = 3
-    jugador.selectedSlot = nil
-    jugador.equipo = nil
-    jugador.tiempoInmune = 0
-    jugador.tiempoAtaque = 0
-    jugador.cuadroAtaque = 1
-    jugador.golpeDetectado = false
     messageTimer = 0
-    
-    if rutaMapa == "levels/tutorial.lua" then
-        zombi.activo = true
-        zombi.vida = 3
-        zombi.estado = "idle"
-        zombi.direccion = "left"
-        zombi.tiempoFlashRed = 0
-        zombi.tiempoMuerte = 0
-        zombi.tiempoUltimoAtaque = 0
-        
-        -- Escaneo inteligente de colisiones para spawn seguro del zombi (evitar paredes)
-        local spawnX, spawnY = 580, 300
-        local dx, dy = 0, 0
-        local step = 8
-        local found = false
-        for r = 0, 10 do
-            for x_offset = -r, r do
-                for y_offset = -r, r do
-                    local testX = spawnX + x_offset * step
-                    local testY = spawnY + y_offset * step
-                    local z_col_x = testX - zombi.col_w / 2
-                    local z_col_y = testY + (8 * zombi.escala) - zombi.col_h
-                    if not colisiona(z_col_x, z_col_y, zombi.col_w, zombi.col_h) then
-                        zombi.x = testX
-                        zombi.y = testY
-                        found = true
-                        break
-                    end
-                end
-                if found then break end
-            end
-            if found then break end
-        end
-        if not found then
-            zombi.x = 580
-            zombi.y = 300
-        end
-    else
-        zombi.activo = false
-    end
-    
     gameState = "play"
 end
 
 function love.load()
-    -- Cargar todas las combinaciones de IDLE (según image_0d0c40.png)
+    -- Cargar todas las combinaciones de IDLE
     cargarAnimacion("idle", "down",  "assets/images/alex/idle/alex_idle_down.png")
     cargarAnimacion("idle", "up",    "assets/images/alex/idle/alex_idle_up.png")
     cargarAnimacion("idle", "left",  "assets/images/alex/idle/alex_idle_left.png")
     cargarAnimacion("idle", "right", "assets/images/alex/idle/alex_idle_right.png")
     
-    -- Cargar todas las combinaciones de RUN (según image_0d0c65.png)
+    -- Cargar todas las combinaciones de RUN
     cargarAnimacion("run", "down",  "assets/images/alex/run/alex_run_down.png")
     cargarAnimacion("run", "up",    "assets/images/alex/run/alex_run_up.png")
     cargarAnimacion("run", "left",  "assets/images/alex/run/alex_run_left.png")
     cargarAnimacion("run", "right", "assets/images/alex/run/alex_run_right.png")
+    
+    -- Animaciones base de Alex SIN manos (Nohands) para combinar con armas
+    cargarAnimacion("idle_nohands", "down",  "assets/images/alex/idle/alex_idle_down_nohands.png")
+    cargarAnimacion("idle_nohands", "up",    "assets/images/alex/idle/alex_idle_up_nohands.png")
+    cargarAnimacion("idle_nohands", "left",  "assets/images/alex/idle/alex_idle_left_nohands.png")
+    cargarAnimacion("idle_nohands", "right", "assets/images/alex/idle/alex_idle_right_nohands.png")
+    
+    cargarAnimacion("run_nohands", "down",  "assets/images/alex/run/alex_run_down_nohands.png")
+    cargarAnimacion("run_nohands", "up",    "assets/images/alex/run/alex_run_up_nohands.png")
+    cargarAnimacion("run_nohands", "left",  "assets/images/alex/run/alex_run_left_nohands.png")
+    cargarAnimacion("run_nohands", "right", "assets/images/alex/run/alex_run_right_nohands.png")
+    
+    cargarAnimacion("punch_nohands", "down",  "assets/images/alex/punch/alex_punch_down_nohands.png", 4)
+    cargarAnimacion("punch_nohands", "up",    "assets/images/alex/punch/alex_punch_up_nohands.png", 4)
+    cargarAnimacion("punch_nohands", "left",  "assets/images/alex/punch/alex_punch_left_nohands.png", 4)
+    cargarAnimacion("punch_nohands", "right", "assets/images/alex/punch/alex_punch_right_nohands.png", 4)
     
     -- Animaciones de Alex con el BATE (Idle & Run) - 6 cuadros cada una
     cargarAnimacion("idle_bat", "down",  "assets/images/alex/weapons/bat/bat_down_idle_run.png")
@@ -489,240 +415,14 @@ function love.update(dt)
         messageTimer = messageTimer - dt
     end
 
-    -- Control de inmunidad del jugador
-    if jugador.tiempoInmune > 0 then
-        jugador.tiempoInmune = jugador.tiempoInmune - dt
+    -- Callback para cambiar gameState desde modulos
+    local function cambiarGameState(state)
+        gameState = state
     end
 
-    -- === Procesamiento de Ataque de Alex ===
-    if jugador.estado == "attack" then
-        jugador.tiempoAtaque = jugador.tiempoAtaque + dt
-        local animKey = "attack_bat"
-        local anim = animaciones.banco[animKey] and animaciones.banco[animKey][jugador.direccion]
-        if anim then
-            local frameDuration = 0.08
-            jugador.cuadroAtaque = math.floor(jugador.tiempoAtaque / frameDuration) + 1
-            
-            -- Verificar impacto a mitad de la animación
-            local midFrame = math.floor(anim.total / 2) + 1
-            if jugador.cuadroAtaque == midFrame and not jugador.golpeDetectado then
-                jugador.golpeDetectado = true
-                
-                -- Detectar si golpeamos al zombi
-                if zombi.activo and zombi.vida > 0 then
-                    local dist = math.sqrt((jugador.x - zombi.x)^2 + (jugador.y - zombi.y)^2)
-                    if dist < 45 then
-                        local deCara = false
-                        if jugador.direccion == "right" and zombi.x > jugador.x - 10 then
-                            deCara = true
-                        elseif jugador.direccion == "left" and zombi.x < jugador.x + 10 then
-                            deCara = true
-                        elseif jugador.direccion == "up" and zombi.y < jugador.y + 10 then
-                            deCara = true
-                        elseif jugador.direccion == "down" and zombi.y > jugador.y - 10 then
-                            deCara = true
-                        end
-                        
-                        if deCara then
-                            zombi.vida = zombi.vida - 1
-                            zombi.tiempoFlashRed = 0.2
-                            
-                            -- Retroceso físico
-                            local kx, ky = 0, 0
-                            if jugador.direccion == "right" then kx = 1
-                            elseif jugador.direccion == "left" then kx = -1
-                            elseif jugador.direccion == "up" then ky = -1
-                            elseif jugador.direccion == "down" then ky = 1
-                            end
-                            
-                            local retroceso = 30
-                            local targetZombieX = zombi.x + kx * retroceso
-                            local targetZombieY = zombi.y + ky * retroceso
-                            
-                            local z_col_x = targetZombieX - zombi.col_w / 2
-                            local z_col_y = targetZombieY + (8 * zombi.escala) - zombi.col_h
-                            if not colisiona(z_col_x, z_col_y, zombi.col_w, zombi.col_h) then
-                                zombi.x = targetZombieX
-                                zombi.y = targetZombieY
-                            end
-                            
-                            if zombi.vida <= 0 then
-                                zombi.estado = "death"
-                                zombi.tiempoMuerte = 0
-                            end
-                        end
-                    end
-                end
-            end
-            
-            if jugador.cuadroAtaque > anim.total then
-                jugador.estado = "idle"
-                jugador.tiempoAtaque = 0
-                jugador.cuadroAtaque = 1
-                jugador.golpeDetectado = false
-            end
-        else
-            jugador.estado = "idle"
-        end
-    end
-
-    -- === Lógica del Zombi ===
-    if zombi.activo then
-        if zombi.vida > 0 then
-            if zombi.tiempoFlashRed > 0 then
-                zombi.tiempoFlashRed = zombi.tiempoFlashRed - dt
-            end
-            if zombi.tiempoUltimoAtaque > 0 then
-                zombi.tiempoUltimoAtaque = zombi.tiempoUltimoAtaque - dt
-            end
-            
-            local distX = jugador.x - zombi.x
-            local distY = jugador.y - zombi.y
-            local dist = math.sqrt(distX * distX + distY * distY)
-            
-            if dist < zombi.rangoDeteccion and jugador.vida > 0 then
-                zombi.estado = "walk"
-                
-                if math.abs(distX) > math.abs(distY) then
-                    zombi.direccion = distX > 0 and "right" or "left"
-                else
-                    zombi.direccion = distY > 0 and "down" or "up"
-                end
-                
-                if dist > 20 then
-                    local dx = distX / dist
-                    local dy = distY / dist
-                    
-                    local nuevoX = zombi.x + dx * zombi.velocidad * dt
-                    local nuevoY = zombi.y + dy * zombi.velocidad * dt
-                    
-                    local z_col_x = nuevoX - zombi.col_w / 2
-                    local z_col_y = zombi.y + (8 * zombi.escala) - zombi.col_h
-                    if not colisiona(z_col_x, z_col_y, zombi.col_w, zombi.col_h) then
-                        zombi.x = nuevoX
-                    end
-                    
-                    z_col_x = zombi.x - zombi.col_w / 2
-                    z_col_y = nuevoY + (8 * zombi.escala) - zombi.col_h
-                    if not colisiona(z_col_x, z_col_y, zombi.col_w, zombi.col_h) then
-                        zombi.y = nuevoY
-                    end
-                else
-                    zombi.estado = "attack"
-                    if zombi.tiempoUltimoAtaque <= 0 then
-                        zombi.tiempoUltimoAtaque = zombi.cooldownAtaque
-                        
-                        if jugador.tiempoInmune <= 0 then
-                            jugador.vida = jugador.vida - 1
-                            jugador.tiempoInmune = 1.5
-                            
-                            -- Retroceso de Alex
-                            local kx = distX > 0 and -1 or 1
-                            local ky = distY > 0 and -1 or 1
-                            local p_retroceso = 20
-                            local targetPlayerX = jugador.x + kx * p_retroceso
-                            local targetPlayerY = jugador.y + ky * p_retroceso
-                            
-                            local p_col_x = targetPlayerX - jugador.col_w / 2
-                            local p_col_y = targetPlayerY + (8 * jugador.escala) - jugador.col_h
-                            if not colisiona(p_col_x, p_col_y, jugador.col_w, jugador.col_h) then
-                                jugador.x = targetPlayerX
-                                jugador.y = targetPlayerY
-                            end
-                            
-                            if jugador.vida <= 0 then
-                                gameState = "gameover"
-                            end
-                        end
-                    end
-                end
-            else
-                zombi.estado = "idle"
-            end
-        elseif zombi.estado == "death" then
-            zombi.tiempoMuerte = zombi.tiempoMuerte + dt
-            local deathDuration = 0.72
-            if zombi.tiempoMuerte >= deathDuration then
-                zombi.activo = false
-            end
-        end
-    end
-
-    -- Movimiento del jugador (bloqueado si está atacando)
-    local moviendose = false
-    local dx, dy = 0, 0
-    
-    if jugador.estado ~= "attack" then
-        if love.keyboard.isDown("w") or love.keyboard.isDown("up") then
-            dy = -1
-            jugador.direccion = "up"
-            moviendose = true
-        elseif love.keyboard.isDown("s") or love.keyboard.isDown("down") then
-            dy = 1
-            jugador.direccion = "down"
-            moviendose = true
-        end
-        
-        if love.keyboard.isDown("a") or love.keyboard.isDown("left") then
-            dx = -1
-            jugador.direccion = "left"
-            moviendose = true
-        elseif love.keyboard.isDown("d") or love.keyboard.isDown("right") then
-            dx = 1
-            jugador.direccion = "right"
-            moviendose = true
-        end
-        
-        if moviendose then
-            jugador.estado = "run"
-            
-            if dx ~= 0 and dy ~= 0 then
-                local len = math.sqrt(dx*dx + dy*dy)
-                dx = dx / len
-                dy = dy / len
-            end
-            
-            local nuevo_x = jugador.x + dx * jugador.velocidad * dt
-            local nuevo_y = jugador.y + dy * jugador.velocidad * dt
-            
-            local col_x = nuevo_x - jugador.col_w / 2
-            local col_y = jugador.y + (8 * jugador.escala) - jugador.col_h
-            if not colisiona(col_x, col_y, jugador.col_w, jugador.col_h) then
-                jugador.x = nuevo_x
-            end
-            
-            col_x = jugador.x - jugador.col_w / 2
-            col_y = nuevo_y + (8 * jugador.escala) - jugador.col_h
-            if not colisiona(col_x, col_y, jugador.col_w, jugador.col_h) then
-                jugador.y = nuevo_y
-            end
-        else
-            jugador.estado = "idle"
-        end
-    end
-    
-    -- === Lógica de recolección de pickups ===
-    local i = 1
-    while i <= #pickups do
-        local p = pickups[i]
-        local distX = jugador.x - p.cx
-        local distY = jugador.y - p.cy
-        local dist = math.sqrt(distX * distX + distY * distY)
-        
-        if dist < 15 then
-            table.insert(jugador.inventory, {
-                tipo = p.tipo,
-                gid = p.gid,
-                image = p.image,
-                iconImage = p.iconImage,
-                imgW = p.imgW,
-                imgH = p.imgH
-            })
-            table.remove(pickups, i)
-        else
-            i = i + 1
-        end
-    end
+    -- Actualizar módulos delegados
+    alexModule.update(dt, colisiona, zombi, pickups, mostrarMensaje, cambiarGameState)
+    zombieModule.update(dt, colisiona, jugador, cambiarGameState)
     
     -- Manejo del temporizador global para la animación activa
     animaciones.tiempoAcumulado = animaciones.tiempoAcumulado + dt
@@ -761,7 +461,7 @@ function love.draw()
 
     love.graphics.clear(0.1, 0.1, 0.1) -- Fondo gris oscuro de pruebas
     
-    -- Dibujar todas las capas del mapa DETRÁS de Alex
+    -- Dibujar todas las capas del mapa DETRÁS de los personajes
     mapa:draw()
     
     -- === Dibujar pickups en el suelo ===
@@ -778,107 +478,19 @@ function love.draw()
     love.graphics.print("Presiona 'Escape' para volver al Menu Principal", 20, 60)
     
     -- === Dibujar Zombi ===
-    if zombi.activo then
-        local zAnimKey = "zombie_" .. zombi.estado
-        if zombi.estado == "death" then
-            zAnimKey = "zombie_death"
-        end
-        
-        local zAnim = animaciones.banco[zAnimKey] and animaciones.banco[zAnimKey][zombi.direccion]
-        if zAnim then
-            local zFrame = animaciones.cuadroActual
-            if zombi.estado == "death" then
-                local frameDuration = 0.12
-                zFrame = math.min(zAnim.total, math.floor(zombi.tiempoMuerte / frameDuration) + 1)
-            elseif zombi.estado == "attack" then
-                local frameDuration = 0.15
-                zFrame = math.min(zAnim.total, (math.floor(love.timer.getTime() / frameDuration) % zAnim.total) + 1)
-            end
-            
-            local quadIdx = math.max(1, math.min(zFrame, zAnim.total))
-            
-            if zombi.tiempoFlashRed > 0 then
-                love.graphics.setColor(1, 0.2, 0.2, 1)
-            else
-                love.graphics.setColor(1, 1, 1, 1)
-            end
-            
-            love.graphics.draw(
-                zAnim.sheet,
-                zAnim.quads[quadIdx],
-                zombi.x,
-                zombi.y,
-                0,
-                zombi.escala,
-                zombi.escala,
-                zAnim.w / 2,
-                zAnim.h / 2
-            )
-        end
-    end
+    zombieModule.draw(animaciones, debug_colisiones)
     
-    -- Buscar de forma dinámica la animación de Alex
-    local animKey = jugador.estado
-    if jugador.equipo == "bat" then
-        if jugador.estado == "idle" or jugador.estado == "run" then
-            animKey = jugador.estado .. "_bat"
-        elseif jugador.estado == "attack" then
-            animKey = "attack_bat"
-        end
-    end
-    
-    local animacionActual = animaciones.banco[animKey] and animaciones.banco[animKey][jugador.direccion]
-    
-    if animacionActual then
-        love.graphics.setColor(1, 1, 1, 1)
-        if jugador.tiempoInmune > 0 then
-            -- Parpadeo de visibilidad (alternar cada 0.1s)
-            if math.floor(love.timer.getTime() * 15) % 2 == 0 then
-                love.graphics.setColor(1, 1, 1, 0.3)
-            end
-        end
-        
-        local frameIdx = animaciones.cuadroActual
-        if jugador.estado == "attack" then
-            frameIdx = jugador.cuadroAtaque
-        end
-        local quadIdx = math.max(1, math.min(frameIdx, animacionActual.total or animaciones.totalCuadros))
-        
-        love.graphics.draw(
-            animacionActual.sheet, 
-            animacionActual.quads[quadIdx], 
-            jugador.x, 
-            jugador.y, 
-            0,    
-            jugador.escala, -- Escala X
-            jugador.escala, -- Escala Y
-            animacionActual.w / 2, -- Centrar el pivote en X
-            animacionActual.h / 2  -- Centrar el pivote en Y
-        )
-    end
+    -- === Dibujar Alex ===
+    alexModule.draw(animaciones, debug_colisiones)
 
     if debug_colisiones then
-        -- Dibujar rectángulos de colisión en rojo
+        -- Dibujar rectángulos de colisión del mapa en rojo
         love.graphics.setColor(1, 0, 0, 0.4)
         for _, rect in ipairs(colisionables) do
             love.graphics.rectangle("fill", rect.x, rect.y, rect.w, rect.h)
         end
         
-        -- Dibujar caja de colisión del jugador en verde
-        love.graphics.setColor(0, 1, 0, 0.6)
-        local col_x = jugador.x - jugador.col_w / 2
-        local col_y = jugador.y + (8 * jugador.escala) - jugador.col_h
-        love.graphics.rectangle("fill", col_x, col_y, jugador.col_w, jugador.col_h)
-        
-        -- Dibujar caja de colisión del zombi en azul
-        if zombi.activo and zombi.vida > 0 then
-            love.graphics.setColor(0, 0, 1, 0.6)
-            local z_col_x = zombi.x - zombi.col_w / 2
-            local z_col_y = zombi.y + (8 * zombi.escala) - zombi.col_h
-            love.graphics.rectangle("fill", z_col_x, z_col_y, zombi.col_w, zombi.col_h)
-        end
-        
-        -- Dibujar indicadores de pickups para depuración
+        -- Indicadores de pickups para depuración
         love.graphics.setColor(1, 1, 0, 0.6)
         for _, p in ipairs(pickups) do
             love.graphics.circle("line", p.cx, p.cy, 15)
@@ -987,61 +599,14 @@ function love.keypressed(key)
             debug_colisiones = not debug_colisiones
         elseif key == "escape" then
             gameState = "menu"
-        elseif key == "space" and jugador.estado ~= "attack" and jugador.equipo == "bat" then
-            jugador.estado = "attack"
-            jugador.tiempoAtaque = 0
-            jugador.cuadroAtaque = 1
-            jugador.golpeDetectado = false
-        -- Selección rápida de ranuras de inventario
-        elseif key == "1" or key == "2" or key == "3" or key == "4" or key == "5" or key == "6" then
-            local idx = tonumber(key)
-            if jugador.inventory[idx] then
-                local item = jugador.inventory[idx]
-                if item.tipo == "bandage" then
-                    if jugador.vida < 3 then
-                        jugador.vida = math.min(3, jugador.vida + 1)
-                        table.remove(jugador.inventory, idx)
-                        mostrarMensaje("¡Te has curado! Vida: " .. jugador.vida .. "/3")
-                        if jugador.selectedSlot == idx then
-                            jugador.selectedSlot = nil
-                        end
-                    else
-                        mostrarMensaje("¡Vida al máximo!")
-                    end
-                elseif item.tipo == "bat" then
-                    if jugador.selectedSlot == idx then
-                        jugador.selectedSlot = nil
-                        jugador.equipo = nil
-                        mostrarMensaje("Bate desequipado")
-                    else
-                        jugador.selectedSlot = idx
-                        jugador.equipo = "bat"
-                        mostrarMensaje("Bate equipado")
-                    end
-                else
-                    if jugador.selectedSlot == idx then
-                        jugador.selectedSlot = nil
-                        mostrarMensaje("Ranura deseleccionada")
-                    else
-                        jugador.selectedSlot = idx
-                        mostrarMensaje("Seleccionado: " .. item.tipo:upper())
-                    end
-                end
-            else
-                jugador.selectedSlot = nil
-                jugador.equipo = nil
-            end
+        else
+            alexModule.keypressed(key, mostrarMensaje)
         end
     end
 end
 
 function love.mousepressed(x, y, button)
-    if gameState == "play" and jugador.estado ~= "attack" and jugador.equipo == "bat" then
-        if button == 1 then
-            jugador.estado = "attack"
-            jugador.tiempoAtaque = 0
-            jugador.cuadroAtaque = 1
-            jugador.golpeDetectado = false
-        end
+    if gameState == "play" then
+        alexModule.mousepressed(button)
     end
 end
