@@ -48,24 +48,30 @@
             "scaleInEditor": 1
         },
         "levels/mission01.tmx": {
-            "scale": 0.75,
-            "selectedLayer": 4,
+            "expandedObjectLayers": [
+                3,
+                4,
+                5
+            ],
+            "scale": 1.5,
+            "selectedLayer": 5,
             "viewCenter": {
-                "x": 452.66666666666663,
-                "y": 333.33333333333326
+                "x": 202.33333333333331,
+                "y": 153.33333333333334
             }
         },
         "levels/tutorial.tmx": {
             "expandedObjectLayers": [
                 6,
                 4,
-                5
+                5,
+                7
             ],
-            "scale": 0.75,
-            "selectedLayer": 4,
+            "scale": 1,
+            "selectedLayer": 5,
             "viewCenter": {
-                "x": 391.33333333333337,
-                "y": 338.6666666666667
+                "x": 440,
+                "y": 384
             }
         }
     },

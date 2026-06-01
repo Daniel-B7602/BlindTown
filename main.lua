@@ -12,7 +12,6 @@ local zombieModule = require("zombie")
 
 local jugador = alexModule.jugador
 local alex = jugador
-local zombi = zombieModule.zombi
 
 -- Lista global de rectángulos colisionables
 local colisionables = {}
@@ -145,7 +144,7 @@ local function cargarColisiones(map)
     for _, layer in ipairs(map.layers) do
         if layer.type == "objectgroup" then
             -- Excluir la capa de pickups del sistema de colisiones
-            if layer.name ~= "Pickable" and layer.name ~= "Pickups" then
+            if layer.name ~= "Pickable" and layer.name ~= "Pickups" and layer.name ~= "Pickables" then
                 for _, obj in ipairs(layer.objects) do
                     local es_colisionable = (layer.properties and layer.properties.collidable == true) or
                                            (obj.properties and obj.properties.collidable == true) or
@@ -236,7 +235,7 @@ local function cargarPickups(map)
     pickupImages = {}
     
     for _, layer in ipairs(map.layers) do
-        if layer.type == "objectgroup" and (layer.name == "Pickable" or layer.name == "Pickups") then
+        if layer.type == "objectgroup" and (layer.name == "Pickable" or layer.name == "Pickups" or layer.name == "Pickables") then
             -- Ocultar la capa de STI para evitar renderizado duplicado
             layer.visible = false
             
@@ -421,7 +420,7 @@ function love.update(dt)
     end
 
     -- Actualizar módulos delegados
-    alexModule.update(dt, colisiona, zombi, pickups, mostrarMensaje, cambiarGameState)
+    alexModule.update(dt, colisiona, zombieModule.zombies, pickups, mostrarMensaje, cambiarGameState)
     zombieModule.update(dt, colisiona, jugador, cambiarGameState)
     
     -- Manejo del temporizador global para la animación activa

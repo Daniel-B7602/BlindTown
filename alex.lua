@@ -40,7 +40,7 @@ function alexModule.iniciar(rutaMapa)
     j.golpeDetectado = false
 end
 
-function alexModule.update(dt, colisiona, zombi, pickups, mostrarMensaje, cambiarGameState)
+function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, cambiarGameState)
     local j = alexModule.jugador
 
     -- Control de inmunidad
@@ -62,42 +62,44 @@ function alexModule.update(dt, colisiona, zombi, pickups, mostrarMensaje, cambia
             if j.cuadroAtaque == midFrame and not j.golpeDetectado then
                 j.golpeDetectado = true
                 
-                if zombi.activo and zombi.vida > 0 then
-                    local dist = math.sqrt((j.x - zombi.x)^2 + (j.y - zombi.y)^2)
-                    if dist < 45 then
-                        local deCara = false
-                        if j.direccion == "right" and zombi.x > j.x - 10 then deCara = true
-                        elseif j.direccion == "left" and zombi.x < j.x + 10 then deCara = true
-                        elseif j.direccion == "up" and zombi.y < j.y + 10 then deCara = true
-                        elseif j.direccion == "down" and zombi.y > j.y - 10 then deCara = true
-                        end
-                        
-                        if deCara then
-                            zombi.vida = zombi.vida - 1
-                            zombi.tiempoFlashRed = 0.2
-                            
-                            -- Retroceso físico
-                            local kx, ky = 0, 0
-                            if j.direccion == "right" then kx = 1
-                            elseif j.direccion == "left" then kx = -1
-                            elseif j.direccion == "up" then ky = -1
-                            elseif j.direccion == "down" then ky = 1
+                for _, z in ipairs(zombies) do
+                    if z.activo and z.vida > 0 then
+                        local dist = math.sqrt((j.x - z.x)^2 + (j.y - z.y)^2)
+                        if dist < 45 then
+                            local deCara = false
+                            if j.direccion == "right" and z.x > j.x - 10 then deCara = true
+                            elseif j.direccion == "left" and z.x < j.x + 10 then deCara = true
+                            elseif j.direccion == "up" and z.y < j.y + 10 then deCara = true
+                            elseif j.direccion == "down" and z.y > j.y - 10 then deCara = true
                             end
                             
-                            local retroceso = 30
-                            local targetZombieX = zombi.x + kx * retroceso
-                            local targetZombieY = zombi.y + ky * retroceso
-                            
-                            local z_col_x = targetZombieX - zombi.col_w / 2
-                            local z_col_y = targetZombieY + (8 * zombi.escala) - zombi.col_h
-                            if not colisiona(z_col_x, z_col_y, zombi.col_w, zombi.col_h) then
-                                zombi.x = targetZombieX
-                                zombi.y = targetZombieY
-                            end
-                            
-                            if zombi.vida <= 0 then
-                                zombi.estado = "death"
-                                zombi.tiempoMuerte = 0
+                            if deCara then
+                                z.vida = z.vida - 1
+                                z.tiempoFlashRed = 0.2
+                                
+                                -- Retroceso físico
+                                local kx, ky = 0, 0
+                                if j.direccion == "right" then kx = 1
+                                elseif j.direccion == "left" then kx = -1
+                                elseif j.direccion == "up" then ky = -1
+                                elseif j.direccion == "down" then ky = 1
+                                end
+                                
+                                local retroceso = 30
+                                local targetZombieX = z.x + kx * retroceso
+                                local targetZombieY = z.y + ky * retroceso
+                                
+                                local z_col_x = targetZombieX - z.col_w / 2
+                                local z_col_y = targetZombieY + (8 * z.escala) - z.col_h
+                                if not colisiona(z_col_x, z_col_y, z.col_w, z.col_h) then
+                                    z.x = targetZombieX
+                                    z.y = targetZombieY
+                                end
+                                
+                                if z.vida <= 0 then
+                                    z.estado = "death"
+                                    z.tiempoMuerte = 0
+                                end
                             end
                         end
                     end

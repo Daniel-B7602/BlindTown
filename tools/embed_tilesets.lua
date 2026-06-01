@@ -116,6 +116,7 @@ local tilesets = {
     { firstgid = 578, tsx = "assets/images/objects/vehicles/normal/Vehiculos.tsx", base = "../assets/images/objects/vehicles/normal" },
     { firstgid = 622, tsx = "assets/images/objects/other/Decoracion.tsx", base = "../assets/images/objects/other" },
     { firstgid = 707, tsx = "assets/images/objects/nature/darkgreen_nature/Arboles.tsx", base = "../assets/images/objects/nature/darkgreen_nature" },
+    { firstgid = 751, tsx = "assets/images/objects/pickable/Pickable.tsx", base = "../assets/images/objects/pickable" },
 }
 
 local tilesetStrings = {}

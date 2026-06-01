@@ -9,9 +9,10 @@ return {
   height = 38,
   tilewidth = 16,
   tileheight = 16,
-  nextlayerid = 6,
-  nextobjectid = 73,
-  properties = {},  tilesets = {
+  nextlayerid = 7,
+  nextobjectid = 79,
+  properties = {},
+  tilesets = {
     {
       name = "Background_Bleak-Yellow_TileSet",
       firstgid = 1,
@@ -388,6 +389,30 @@ return {
         { id = 41, image = "../assets/images/objects/nature/darkgreen_nature/Tree_9_Small-oak_Dark-Green.png", width = 39, height = 45, properties = { ["collidable"] = true } },
         { id = 42, image = "../assets/images/objects/nature/darkgreen_nature/Tree_10_Small-oak_Dark-Green.png", width = 24, height = 36, properties = { ["collidable"] = true } },
         { id = 43, image = "../assets/images/objects/nature/darkgreen_nature/Tree-trunk_2_grass_Dark-Green.png", width = 32, height = 12, properties = { ["collidable"] = true } },
+      }
+    },
+    {
+      name = "Pickable",
+      firstgid = 751,
+      tilewidth = 11,
+      tileheight = 12,
+      spacing = 0,
+      margin = 0,
+      tilecount = 11,
+      columns = 0,
+      tileoffset = { x = 0, y = 0 },
+      tiles = {
+        { id = 0, image = "../assets/images/objects/pickable/Ammo-crate_Blue.png", width = 9, height = 7 },
+        { id = 1, image = "../assets/images/objects/pickable/Ammo-crate_Green.png", width = 9, height = 7 },
+        { id = 2, image = "../assets/images/objects/pickable/Ammo-crate_Red.png", width = 9, height = 7 },
+        { id = 3, image = "../assets/images/objects/pickable/Bandage.png", width = 5, height = 7 },
+        { id = 4, image = "../assets/images/objects/pickable/Bat.png", width = 11, height = 12 },
+        { id = 5, image = "../assets/images/objects/pickable/Bullet-box_1_Blue.png", width = 6, height = 4 },
+        { id = 6, image = "../assets/images/objects/pickable/Bullet-box_1_Green.png", width = 6, height = 4 },
+        { id = 7, image = "../assets/images/objects/pickable/Bullet-box_1_Red.png", width = 6, height = 4 },
+        { id = 8, image = "../assets/images/objects/pickable/Canned-food.png", width = 7, height = 7 },
+        { id = 9, image = "../assets/images/objects/pickable/Canned-soup.png", width = 5, height = 7 },
+        { id = 10, image = "../assets/images/objects/pickable/Pistol.png", width = 8, height = 7 },
       }
     }
   },
@@ -1603,6 +1628,107 @@ return {
           gid = 747,
           visible = true,
           properties = {}
+        }
+      }
+    },
+    {
+      type = "objectgroup",
+      draworder = "topdown",
+      id = 6,
+      name = "Pickables",
+      class = "",
+      visible = true,
+      opacity = 1,
+      offsetx = 0,
+      offsety = 0,
+      parallaxx = 1,
+      parallaxy = 1,
+      properties = {},
+      objects = {
+        {
+          id = 73,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 599,
+          y = 122,
+          width = 11,
+          height = 12,
+          rotation = 0,
+          opacity = 1,
+          gid = 755,
+          visible = true,
+          properties = {
+            ["tipo"] = "bat"
+          }
+        },
+        {
+          id = 75,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 155.333,
+          y = 248,
+          width = 5,
+          height = 7,
+          rotation = 0,
+          opacity = 1,
+          gid = 754,
+          visible = true,
+          properties = {
+            ["tipo"] = "bandage"
+          }
+        },
+        {
+          id = 76,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 646,
+          y = 593.333,
+          width = 5,
+          height = 7,
+          rotation = 0,
+          opacity = 1,
+          gid = 754,
+          visible = true,
+          properties = {
+            ["tipo"] = "bandage"
+          }
+        },
+        {
+          id = 77,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 265,
+          y = 184,
+          width = 7,
+          height = 7,
+          rotation = 0,
+          opacity = 1,
+          gid = 759,
+          visible = true,
+          properties = {
+            ["tipo"] = "canned-soup"
+          }
+        },
+        {
+          id = 78,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 139.667,
+          y = 132,
+          width = 7,
+          height = 7,
+          rotation = 0,
+          opacity = 1,
+          gid = 759,
+          visible = true,
+          properties = {
+            ["tipo"] = "canned-soup"
+          }
         }
       }
     }

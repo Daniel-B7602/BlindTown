@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="50" height="38" tilewidth="16" tileheight="16" infinite="0" nextlayerid="6" nextobjectid="73">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="50" height="38" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="79">
+ <editorsettings>
+  <export target="mission01.lua" format="lua"/>
+ </editorsettings>
  <tileset firstgid="1" source="../assets/images/tiles/Background_Bleak-Yellow_TileSet.tsx"/>
  <tileset firstgid="409" source="../assets/images/tiles/buildings/Buildings_beige_TileSet.tsx"/>
  <tileset firstgid="578" source="../assets/images/objects/vehicles/normal/Vehiculos.tsx"/>
  <tileset firstgid="622" source="../assets/images/objects/other/Decoracion.tsx"/>
  <tileset firstgid="707" source="../assets/images/objects/nature/darkgreen_nature/Arboles.tsx"/>
+ <tileset firstgid="751" source="../assets/images/objects/pickable/Pickable.tsx"/>
  <layer id="1" name="Fondo" width="50" height="38">
   <data encoding="csv">
 6,6,6,6,6,6,6,6,6,52,6,6,35,26,33,6,6,6,52,6,6,6,6,6,6,6,6,6,6,6,6,6,6,36,193,222,222,221,222,222,198,38,6,6,6,6,6,6,6,6,
@@ -164,5 +168,32 @@
   <object id="70" gid="747" x="196" y="227" width="24" height="36"/>
   <object id="71" gid="747" x="314" y="186" width="24" height="36"/>
   <object id="72" gid="747" x="212" y="180" width="24" height="36"/>
+ </objectgroup>
+ <objectgroup id="6" name="Pickables">
+  <object id="73" gid="755" x="599" y="122" width="11" height="12">
+   <properties>
+    <property name="tipo" value="bat"/>
+   </properties>
+  </object>
+  <object id="75" gid="754" x="155.333" y="248" width="5" height="7">
+   <properties>
+    <property name="tipo" value="bandage"/>
+   </properties>
+  </object>
+  <object id="76" gid="754" x="646" y="593.333" width="5" height="7">
+   <properties>
+    <property name="tipo" value="bandage"/>
+   </properties>
+  </object>
+  <object id="77" gid="759" x="265" y="184" width="7" height="7">
+   <properties>
+    <property name="tipo" value="canned-soup"/>
+   </properties>
+  </object>
+  <object id="78" gid="759" x="139.667" y="132" width="7" height="7">
+   <properties>
+    <property name="tipo" value="canned-soup"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>
