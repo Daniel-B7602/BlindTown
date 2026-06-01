@@ -49,8 +49,27 @@ local SLOT_SIZE = 20  -- Tamaño de cada celda en píxeles originales del sprite
 local heartFullImage
 local heartEmptyImage
 
--- Banco de efectos de sonido
+-- Banco de efectos de sonido y voz guía
 local sonidos = {}
+local currentVoiceSource = nil
+local currentVoiceName = nil
+local voiceQueue = {}
+
+-- Flags y estado del tutorial
+_G.tutorialActive = false
+_G.tutorialFlags = {
+    moved = false,
+    pickedAny = false,
+    pickedBat = false,
+    pickedBandage = false
+}
+
+_G.resetTutorialFlags = function()
+    _G.tutorialFlags.moved = false
+    _G.tutorialFlags.pickedAny = false
+    _G.tutorialFlags.pickedBat = false
+    _G.tutorialFlags.pickedBandage = false
+end
 
 -- Sistema de avisos/mensajes temporales en UI
 local messageTimer = 0
@@ -322,6 +341,19 @@ local function iniciarNivel(rutaMapa)
     
     messageTimer = 0
     gameState = "play"
+
+    if rutaMapa == "levels/tutorial.lua" then
+        _G.tutorialActive = true
+        _G.resetTutorialFlags()
+        if _G.reproducirVoz then
+            _G.reproducirVoz("voz_tutorial_movimiento_alex")
+        end
+    else
+        _G.tutorialActive = false
+        if _G.detenerVoz then
+            _G.detenerVoz()
+        end
+    end
 end
 
 function love.load()
@@ -420,6 +452,21 @@ function love.load()
     cargarSonido("pickup", "assets/audio/sfx/alex_sfx/pickup_objects.wav")
     cargarSonido("collision", "assets/audio/sfx/environment_sfx/collision.wav")
 
+    -- Cargar voces guía
+    cargarSonido("bienvenido_a_blindtown", "assets/audio/guide_voice/bienvenido_a_blindtown.wav")
+    cargarSonido("voz_bate", "assets/audio/guide_voice/voz_bate.wav")
+    cargarSonido("voz_benda", "assets/audio/guide_voice/voz_benda.wav")
+    cargarSonido("voz_estas_muerto", "assets/audio/guide_voice/voz_estas_muerto.wav")
+    cargarSonido("voz_latasopa", "assets/audio/guide_voice/voz_latasopa.wav")
+    cargarSonido("voz_vacio", "assets/audio/guide_voice/voz_vacio.wav")
+    
+    cargarSonido("voz_tutorial_final", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_final.wav")
+    cargarSonido("voz_tutorial_info_bate", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_info_bate.wav")
+    cargarSonido("voz_tutorial_info_benda", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_info_benda.wav")
+    cargarSonido("voz_tutorial_info_inventario", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_info_inventario.wav")
+    cargarSonido("voz_tutorial_info_pickables", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_info_pickables.wav")
+    cargarSonido("voz_tutorial_movimiento_alex", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_movimiento_alex.wav")
+
     -- Función global para reproducir sonido de forma polifónica
     _G.reproducirSonido = function(nombre)
         local src = sonidos[nombre]
@@ -428,9 +475,64 @@ function love.load()
             clon:play()
         end
     end
+
+    -- Sistema de Voz Guía y Cola de Narración
+    _G.reproducirVoz = function(nombre, queueUp)
+        local src = sonidos[nombre]
+        if not src then return end
+
+        if not queueUp then
+            -- Interrumpir todo lo que está sonando y limpiar cola
+            if currentVoiceSource then
+                currentVoiceSource:stop()
+            end
+            voiceQueue = {}
+            src:play()
+            currentVoiceSource = src
+            currentVoiceName = nombre
+        else
+            -- Encolar si ya se está reproduciendo algo activo
+            if currentVoiceSource and currentVoiceSource:isPlaying() then
+                -- Comprobar si ya está en la cola para no duplicar de forma consecutiva
+                if voiceQueue[#voiceQueue] ~= nombre then
+                    table.insert(voiceQueue, nombre)
+                end
+            else
+                -- Si no hay nada reproduciéndose, reproducir de inmediato
+                src:play()
+                currentVoiceSource = src
+                currentVoiceName = nombre
+            end
+        end
+    end
+
+    _G.detenerVoz = function()
+        if currentVoiceSource then
+            currentVoiceSource:stop()
+        end
+        currentVoiceSource = nil
+        currentVoiceName = nil
+        voiceQueue = {}
+    end
+
+    -- Reproducir audio de bienvenida al abrir el juego
+    if _G.reproducirVoz then
+        _G.reproducirVoz("bienvenido_a_blindtown")
+    end
 end
 
 function love.update(dt)
+    -- Procesar la cola de la voz guía en cualquier estado de juego
+    if (not currentVoiceSource or not currentVoiceSource:isPlaying()) and #voiceQueue > 0 then
+        local nextVoice = table.remove(voiceQueue, 1)
+        local src = sonidos[nextVoice]
+        if src then
+            src:play()
+            currentVoiceSource = src
+            currentVoiceName = nextVoice
+        end
+    end
+
     if gameState ~= "play" then
         return
     end
@@ -446,11 +548,37 @@ function love.update(dt)
     -- Callback para cambiar gameState desde modulos
     local function cambiarGameState(state)
         gameState = state
+        if state == "gameover" then
+            _G.tutorialActive = false
+            if _G.reproducirVoz then
+                _G.reproducirVoz("voz_estas_muerto")
+            end
+        end
     end
 
     -- Actualizar módulos delegados
     alexModule.update(dt, colisiona, zombieModule.zombies, pickups, mostrarMensaje, cambiarGameState)
     zombieModule.update(dt, colisiona, jugador, cambiarGameState)
+
+    -- Verificar si el tutorial ha finalizado
+    if _G.tutorialActive and mapa and mapa.ruta == "levels/tutorial.lua" then
+        local allPickupsGrabbed = (#pickups == 0)
+        local zombieKilled = true
+        for _, z in ipairs(zombieModule.zombies) do
+            if z.activo or z.vida > 0 then
+                zombieKilled = false
+                break
+            end
+        end
+        
+        if allPickupsGrabbed and zombieKilled then
+            gameState = "tutorial_complete"
+            _G.tutorialActive = false
+            if _G.reproducirVoz then
+                _G.reproducirVoz("voz_tutorial_final")
+            end
+        end
+    end
     
     -- Manejo del temporizador global para la animación activa
     animaciones.tiempoAcumulado = animaciones.tiempoAcumulado + dt
@@ -484,6 +612,16 @@ function love.draw()
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.print("1. Reintentar", love.graphics.getWidth() / 2 - 80, 290, 0, 1.8, 1.8)
         love.graphics.print("2. Volver al Menu Principal", love.graphics.getWidth() / 2 - 170, 340, 0, 1.8, 1.8)
+        return
+    elseif gameState == "tutorial_complete" then
+        love.graphics.clear(0, 0, 0)
+        
+        love.graphics.setColor(0.2, 1, 0.2, 1)
+        love.graphics.print("Tutorial Finalizado", love.graphics.getWidth() / 2 - 190, 180, 0, 4, 4)
+        
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.print("1. Ir a la misión", love.graphics.getWidth() / 2 - 110, 290, 0, 1.8, 1.8)
+        love.graphics.print("2. Ir al menú principal", love.graphics.getWidth() / 2 - 140, 340, 0, 1.8, 1.8)
         return
     end
 
@@ -615,18 +753,40 @@ function love.keypressed(key)
             iniciarNivel("levels/mission01.lua")
         elseif key == "3" then
             love.event.quit()
+        elseif key == "4" then
+            if _G.reproducirVoz then
+                _G.reproducirVoz("bienvenido_a_blindtown")
+            end
         end
     elseif gameState == "gameover" then
         if key == "1" then
             iniciarNivel(mapa.ruta or "levels/tutorial.lua")
         elseif key == "2" then
             gameState = "menu"
+            _G.tutorialActive = false
+            if _G.reproducirVoz then
+                _G.reproducirVoz("bienvenido_a_blindtown")
+            end
+        end
+    elseif gameState == "tutorial_complete" then
+        if key == "1" then
+            iniciarNivel("levels/mission01.lua")
+        elseif key == "2" then
+            gameState = "menu"
+            _G.tutorialActive = false
+            if _G.reproducirVoz then
+                _G.reproducirVoz("bienvenido_a_blindtown")
+            end
         end
     elseif gameState == "play" then
         if key == "c" then
             debug_colisiones = not debug_colisiones
         elseif key == "escape" then
             gameState = "menu"
+            _G.tutorialActive = false
+            if _G.reproducirVoz then
+                _G.reproducirVoz("bienvenido_a_blindtown")
+            end
         else
             alexModule.keypressed(key, mostrarMensaje)
         end

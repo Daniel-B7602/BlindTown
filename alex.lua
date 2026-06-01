@@ -154,6 +154,14 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
         if moviendose then
             j.estado = "run"
             
+            -- Activar la voz del tutorial al moverse por primera vez
+            if _G.tutorialActive and not _G.tutorialFlags.moved then
+                _G.tutorialFlags.moved = true
+                if _G.reproducirVoz then
+                    _G.reproducirVoz("voz_tutorial_info_pickables", true)
+                end
+            end
+            
             if dx ~= 0 and dy ~= 0 then
                 local len = math.sqrt(dx*dx + dy*dy)
                 dx = dx / len
@@ -208,6 +216,34 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
                 imgW = p.imgW,
                 imgH = p.imgH
             })
+
+            -- Voces del tutorial para recolección de objetos
+            if _G.tutorialActive then
+                -- Primer objeto recogido
+                if not _G.tutorialFlags.pickedAny then
+                    _G.tutorialFlags.pickedAny = true
+                    if _G.reproducirVoz then
+                        _G.reproducirVoz("voz_tutorial_info_inventario", true)
+                    end
+                end
+                
+                -- Si recoge el bate
+                if p.tipo == "bat" and not _G.tutorialFlags.pickedBat then
+                    _G.tutorialFlags.pickedBat = true
+                    if _G.reproducirVoz then
+                        _G.reproducirVoz("voz_tutorial_info_bate", true)
+                    end
+                end
+                
+                -- Si recoge una venda
+                if p.tipo == "bandage" and not _G.tutorialFlags.pickedBandage then
+                    _G.tutorialFlags.pickedBandage = true
+                    if _G.reproducirVoz then
+                        _G.reproducirVoz("voz_tutorial_info_benda", true)
+                    end
+                end
+            end
+
             table.remove(pickups, i)
         else
             i = i + 1
@@ -333,6 +369,7 @@ function alexModule.keypressed(key, mostrarMensaje)
         if j.inventory[idx] then
             local item = j.inventory[idx]
             if item.tipo == "bandage" then
+                if _G.reproducirVoz then _G.reproducirVoz("voz_benda") end
                 if j.vida < 3 then
                     j.vida = math.min(3, j.vida + 1)
                     table.remove(j.inventory, idx)
@@ -344,6 +381,7 @@ function alexModule.keypressed(key, mostrarMensaje)
                     mostrarMensaje("¡Vida al máximo!")
                 end
             elseif item.tipo == "bat" then
+                if _G.reproducirVoz then _G.reproducirVoz("voz_bate") end
                 if j.selectedSlot == idx then
                     j.selectedSlot = nil
                     j.equipo = nil
@@ -354,6 +392,9 @@ function alexModule.keypressed(key, mostrarMensaje)
                     mostrarMensaje("Bate equipado")
                 end
             else
+                if item.tipo == "canned-soup" or item.tipo == "canned-food" then
+                    if _G.reproducirVoz then _G.reproducirVoz("voz_latasopa") end
+                end
                 if j.selectedSlot == idx then
                     j.selectedSlot = nil
                     mostrarMensaje("Ranura deseleccionada")
@@ -363,6 +404,7 @@ function alexModule.keypressed(key, mostrarMensaje)
                 end
             end
         else
+            if _G.reproducirVoz then _G.reproducirVoz("voz_vacio") end
             j.selectedSlot = nil
             j.equipo = nil
         end
