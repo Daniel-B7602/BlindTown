@@ -160,8 +160,15 @@ end
 local function iniciarNivel(rutaMapa)
     mapa = sti(rutaMapa)
     cargarColisiones(mapa)
-    jugador.x = 400
-    jugador.y = 300
+    
+    if rutaMapa == "levels/mission01.lua" then
+        jugador.x = 424
+        jugador.y = 312
+    else
+        jugador.x = 400
+        jugador.y = 300
+    end
+    
     jugador.estado = "idle"
     jugador.direccion = "down"
     gameState = "play"

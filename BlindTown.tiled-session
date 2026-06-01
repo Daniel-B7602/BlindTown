@@ -7,34 +7,68 @@
             "scaleInDock": 1,
             "scaleInEditor": 1
         },
+        "assets/images/objects/nature/darkgreen_nature/Arboles.tsx": {
+            "scaleInEditor": 1
+        },
+        "assets/images/objects/other/Decoracion.tsx": {
+            "dynamicWrapping": true,
+            "scaleInEditor": 1
+        },
         "assets/images/objects/vehicles/normal/Car_8_Blue_Bus.tsx": {
             "dynamicWrapping": true,
             "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "assets/images/objects/vehicles/normal/Vehiculos.tsx": {
-            "dynamicWrapping": true
+            "dynamicWrapping": true,
+            "scaleInEditor": 1
+        },
+        "assets/images/tiles/Background_Bleak-Yellow_TileSet.tsx": {
+            "dynamicWrapping": false
         },
         "assets/images/tiles/Background_Dark-Green_TileSet.tsx": {
+            "dynamicWrapping": false,
             "scaleInEditor": 1
         },
         "assets/images/tiles/buildings/Buildings_beige_TileSet.tsx": {
-            "dynamicWrapping": false
+            "dynamicWrapping": false,
+            "scaleInEditor": 2
         },
         "assets/images/tiles/buildings/Buildings_white_TileSet.tsx": {
             "dynamicWrapping": false,
             "scaleInDock": 1,
-            "scaleInEditor": 1
+            "scaleInEditor": 2
         },
         "levels/Car_8_Blue_Bus.tsx": {
             "dynamicWrapping": true,
             "scaleInDock": 1,
             "scaleInEditor": 1
+        },
+        "levels/mission01.tmx": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 342.5,
+                "y": 513
+            }
+        },
+        "levels/tutorial.tmx": {
+            "expandedObjectLayers": [
+                6,
+                4,
+                5
+            ],
+            "scale": 0.75,
+            "selectedLayer": 4,
+            "viewCenter": {
+                "x": 391.33333333333337,
+                "y": 338.6666666666667
+            }
         }
     },
     "last.exportedFilePath": "C:/Users/USUARIO/Documents/BlindTown/levels",
     "last.externalTilesetPath": "C:/Users/USUARIO/Documents/BlindTown/assets/images/objects/vehicles/normal",
-    "last.imagePath": "C:/Users/USUARIO/Documents/BlindTown/assets/images/objects/nature/darkgreen_nature",
+    "last.imagePath": "C:/Users/USUARIO/Documents/BlindTown/assets/images/tiles",
     "map.height": 38,
     "map.lastUsedExportFilter": "Archivos Lua (*.lua)",
     "map.lastUsedFormat": "tmx",
@@ -46,11 +80,15 @@
     "project": "BlindTown.tiled-project",
     "property.type": "bool",
     "recentFiles": [
+        "assets/images/objects/nature/darkgreen_nature/Arboles.tsx",
+        "assets/images/objects/other/Decoracion.tsx",
+        "assets/images/objects/vehicles/normal/Vehiculos.tsx",
+        "assets/images/tiles/buildings/Buildings_beige_TileSet.tsx",
+        "assets/images/tiles/buildings/Buildings_white_TileSet.tsx",
         "levels/Car_8_Blue_Bus.tsx",
         "assets/images/objects/vehicles/normal/Car_8_Blue_Bus.tsx",
         "assets/images/objects/container/Container_1_Gray_Vertical.tsx",
-        "assets/images/tiles/Background_Dark-Green_TileSet.tsx",
-        "assets/images/tiles/buildings/Buildings_white_TileSet.tsx"
+        "assets/images/tiles/Background_Dark-Green_TileSet.tsx"
     ],
     "tileset.lastUsedFilter": "Todos los archivos (*)",
     "tileset.lastUsedFormat": "tsx",
@@ -58,5 +96,5 @@
         "height": 16,
         "width": 16
     },
-    "tileset.type": 1
+    "tileset.type": 0
 }
