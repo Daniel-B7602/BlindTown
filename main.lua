@@ -1,9 +1,10 @@
 -- Librería STI para cargar mapas de Tiled
 local sti = require("libs.sti")
 
--- Variable global del mapa
+-- Variable global del mapa y estado del juego
 local mapa
 local debug_colisiones = false
+local gameState = "menu" -- "menu" o "play"
 
 -- Estructura del jugador y sus estados
 local jugador = {
@@ -155,13 +156,18 @@ local function colisiona(x, y, w, h)
     return false
 end
 
-function love.load()
-    -- Cargar el mapa del tutorial usando STI
-    mapa = sti("levels/tutorial.lua")
-    
-    -- Inicializar las colisiones del mapa
+-- Cargar un nivel dinámicamente
+local function iniciarNivel(rutaMapa)
+    mapa = sti(rutaMapa)
     cargarColisiones(mapa)
+    jugador.x = 400
+    jugador.y = 300
+    jugador.estado = "idle"
+    jugador.direccion = "down"
+    gameState = "play"
+end
 
+function love.load()
     -- Cargar todas las combinaciones de IDLE (según image_0d0c40.png)
     cargarAnimacion("idle", "down",  "assets/images/alex/idle/alex_idle_down.png")
     cargarAnimacion("idle", "up",    "assets/images/alex/idle/alex_idle_up.png")
@@ -176,6 +182,10 @@ function love.load()
 end
 
 function love.update(dt)
+    if gameState ~= "play" then
+        return
+    end
+
     -- Actualizar el mapa (animaciones de tiles, etc.)
     mapa:update(dt)
 
@@ -247,6 +257,20 @@ function love.update(dt)
 end
 
 function love.draw()
+    if gameState == "menu" then
+        love.graphics.clear(0, 0, 0)
+        
+        love.graphics.setColor(1, 1, 1, 1)
+        -- Título grande
+        love.graphics.print("BlindTown", 200, 150, 0, 4, 4)
+        
+        -- Opciones
+        love.graphics.print("1. Iniciar Tutorial", 200, 260, 0, 1.8, 1.8)
+        love.graphics.print("2. Iniciar Misión 1", 200, 310, 0, 1.8, 1.8)
+        love.graphics.print("3. Salir", 200, 360, 0, 1.8, 1.8)
+        return
+    end
+
     love.graphics.clear(0.1, 0.1, 0.1) -- Fondo gris oscuro de pruebas
     
     -- Dibujar todas las capas del mapa DETRÁS de Alex
@@ -255,6 +279,7 @@ function love.draw()
     love.graphics.setColor(1, 1, 1, 0.6)
     love.graphics.print("Controles: WASD o Flechas. Estado actual: " .. jugador.estado .. " | " .. jugador.direccion, 20, 20)
     love.graphics.print("Presiona 'c' para mostrar/ocultar cajas de colision", 20, 40)
+    love.graphics.print("Presiona 'Escape' para volver al Menu Principal", 20, 60)
     
     -- Buscar de forma dinámica la animación que corresponde al estado y dirección actual
     local animacionActual = animaciones.banco[jugador.estado][jugador.direccion]
@@ -290,7 +315,19 @@ function love.draw()
 end
 
 function love.keypressed(key)
-    if key == "c" then
-        debug_colisiones = not debug_colisiones
+    if gameState == "menu" then
+        if key == "1" then
+            iniciarNivel("levels/tutorial.lua")
+        elseif key == "2" then
+            iniciarNivel("levels/mission01.lua")
+        elseif key == "3" then
+            love.event.quit()
+        end
+    elseif gameState == "play" then
+        if key == "c" then
+            debug_colisiones = not debug_colisiones
+        elseif key == "escape" then
+            gameState = "menu"
+        end
     end
 end
