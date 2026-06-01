@@ -1,0 +1,62 @@
+{
+    "activeFile": "",
+    "expandedProjectPaths": [
+    ],
+    "fileStates": {
+        "assets/images/objects/container/Container_1_Gray_Vertical.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "assets/images/objects/vehicles/normal/Car_8_Blue_Bus.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "assets/images/objects/vehicles/normal/Vehiculos.tsx": {
+            "dynamicWrapping": true
+        },
+        "assets/images/tiles/Background_Dark-Green_TileSet.tsx": {
+            "scaleInEditor": 1
+        },
+        "assets/images/tiles/buildings/Buildings_beige_TileSet.tsx": {
+            "dynamicWrapping": false
+        },
+        "assets/images/tiles/buildings/Buildings_white_TileSet.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "levels/Car_8_Blue_Bus.tsx": {
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        }
+    },
+    "last.exportedFilePath": "C:/Users/USUARIO/Documents/BlindTown/levels",
+    "last.externalTilesetPath": "C:/Users/USUARIO/Documents/BlindTown/assets/images/objects/vehicles/normal",
+    "last.imagePath": "C:/Users/USUARIO/Documents/BlindTown/assets/images/objects/nature/darkgreen_nature",
+    "map.height": 38,
+    "map.lastUsedExportFilter": "Archivos Lua (*.lua)",
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 50,
+    "openFiles": [
+    ],
+    "project": "BlindTown.tiled-project",
+    "property.type": "bool",
+    "recentFiles": [
+        "levels/Car_8_Blue_Bus.tsx",
+        "assets/images/objects/vehicles/normal/Car_8_Blue_Bus.tsx",
+        "assets/images/objects/container/Container_1_Gray_Vertical.tsx",
+        "assets/images/tiles/Background_Dark-Green_TileSet.tsx",
+        "assets/images/tiles/buildings/Buildings_white_TileSet.tsx"
+    ],
+    "tileset.lastUsedFilter": "Todos los archivos (*)",
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.tileSize": {
+        "height": 16,
+        "width": 16
+    },
+    "tileset.type": 1
+}
