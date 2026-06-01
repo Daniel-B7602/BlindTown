@@ -1,5 +1,6 @@
-// Script to re-export mission01.lua with embedded tilesets
+// Script to re-export Lua map files with embedded tilesets
 // Run: node tools/embed_tilesets.js
+// Supports both tutorial.lua and mission01.lua
 
 const fs = require('fs');
 const path = require('path');
@@ -48,7 +49,6 @@ function parseTSX(tsxPath, firstgid, basePath) {
   lines.push("      tileoffset = { x = 0, y = 0 },");
   
   // Parse individual tiles
-  // Let's match all `<tile ... </tile>` blocks, or self-closing `<tile ... />` blocks
   const tileRegex = /<tile\s+([^>]*?)>([\s\S]*?)<\/tile>/g;
   let tiles = [];
   let match;
@@ -100,34 +100,57 @@ function parseTSX(tsxPath, firstgid, basePath) {
   return lines.join('\n');
 }
 
-const tilesets = [
-    { firstgid: 1,   tsx: "assets/images/tiles/Background_Bleak-Yellow_TileSet.tsx", base: "../assets/images/tiles" },
-    { firstgid: 409, tsx: "assets/images/tiles/buildings/Buildings_beige_TileSet.tsx", base: "../assets/images/tiles/buildings" },
-    { firstgid: 578, tsx: "assets/images/objects/vehicles/normal/Vehiculos.tsx", base: "../assets/images/objects/vehicles/normal" },
-    { firstgid: 622, tsx: "assets/images/objects/other/Decoracion.tsx", base: "../assets/images/objects/other" },
-    { firstgid: 707, tsx: "assets/images/objects/nature/darkgreen_nature/Arboles.tsx", base: "../assets/images/objects/nature/darkgreen_nature" },
+// ============================================================
+// MAP DEFINITIONS
+// ============================================================
+
+const maps = [
+  {
+    luaPath: "levels/mission01.lua",
+    tilesets: [
+      { firstgid: 1,   tsx: "assets/images/tiles/Background_Bleak-Yellow_TileSet.tsx", base: "../assets/images/tiles" },
+      { firstgid: 409, tsx: "assets/images/tiles/buildings/Buildings_beige_TileSet.tsx", base: "../assets/images/tiles/buildings" },
+      { firstgid: 578, tsx: "assets/images/objects/vehicles/normal/Vehiculos.tsx", base: "../assets/images/objects/vehicles/normal" },
+      { firstgid: 622, tsx: "assets/images/objects/other/Decoracion.tsx", base: "../assets/images/objects/other" },
+      { firstgid: 707, tsx: "assets/images/objects/nature/darkgreen_nature/Arboles.tsx", base: "../assets/images/objects/nature/darkgreen_nature" },
+    ]
+  },
+  {
+    luaPath: "levels/tutorial.lua",
+    tilesets: [
+      { firstgid: 1,   tsx: "assets/images/tiles/Background_Dark-Green_TileSet.tsx", base: "../assets/images/tiles" },
+      { firstgid: 409, tsx: "assets/images/tiles/buildings/Buildings_white_TileSet.tsx", base: "../assets/images/tiles/buildings" },
+      { firstgid: 578, tsx: "assets/images/tiles/buildings/Buildings_beige_TileSet.tsx", base: "../assets/images/tiles/buildings" },
+      { firstgid: 747, tsx: "assets/images/objects/vehicles/normal/Vehiculos.tsx", base: "../assets/images/objects/vehicles/normal" },
+      { firstgid: 791, tsx: "assets/images/objects/other/Decoracion.tsx", base: "../assets/images/objects/other" },
+      { firstgid: 876, tsx: "assets/images/objects/nature/darkgreen_nature/Arboles.tsx", base: "../assets/images/objects/nature/darkgreen_nature" },
+      { firstgid: 920, tsx: "assets/images/objects/pickable/Pickable.tsx", base: "../assets/images/objects/pickable" },
+    ]
+  }
 ];
 
-const tilesetStrings = tilesets.map(ts => {
-  return parseTSX(ts.tsx, ts.firstgid, ts.base);
-});
+for (const mapDef of maps) {
+  console.log(`\n=== Processing: ${mapDef.luaPath} ===`);
+  
+  const tilesetStrings = mapDef.tilesets.map(ts => {
+    return parseTSX(ts.tsx, ts.firstgid, ts.base);
+  });
 
-// Now read mission01.lua and replace the tilesets section
-const missionPath = "levels/mission01.lua";
-const missionContent = fs.readFileSync(missionPath, 'utf8');
+  const missionContent = fs.readFileSync(mapDef.luaPath, 'utf8');
 
-// Find tilesets table start and end
-const tilesetsRegex = /(\s+tilesets\s*=\s*\{)([\s\S]*?)(\n\s+\},\s*\n\s+layers)/;
-if (!tilesetsRegex.test(missionContent)) {
-  console.error("Could not find tilesets block in mission01.lua!");
-  process.exit(1);
+  // Find tilesets table start and end
+  const tilesetsRegex = /(\s+tilesets\s*=\s*\{)([\s\S]*?)(\n\s+\},\s*\n\s+layers)/;
+  if (!tilesetsRegex.test(missionContent)) {
+    console.error(`Could not find tilesets block in ${mapDef.luaPath}!`);
+    continue;
+  }
+
+  const updatedContent = missionContent.replace(tilesetsRegex, (match, p1, p2, p3) => {
+    return "  tilesets = {\n" + tilesetStrings.join(',\n') + "\n  },\n  layers";
+  });
+
+  fs.writeFileSync(mapDef.luaPath, updatedContent, 'utf8');
+  console.log(`Done! ${mapDef.luaPath} has been updated with embedded tilesets.`);
 }
 
-const newTilesetsContent = `  tilesets = {\n${tilesetStrings.join(',\n')}\n  },`;
-
-const updatedMissionContent = missionContent.replace(tilesetsRegex, (match, p1, p2, p3) => {
-  return "  tilesets = {\n" + tilesetStrings.join(',\n') + "\n  },\n  layers";
-});
-
-fs.writeFileSync(missionPath, updatedMissionContent, 'utf8');
-console.log("Done! mission01.lua has been updated with embedded tilesets successfully!");
+console.log("\nAll maps processed successfully!");

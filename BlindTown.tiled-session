@@ -14,6 +14,9 @@
             "dynamicWrapping": true,
             "scaleInEditor": 1
         },
+        "assets/images/objects/pickable/Pickable.tsx": {
+            "dynamicWrapping": true
+        },
         "assets/images/objects/vehicles/normal/Car_8_Blue_Bus.tsx": {
             "dynamicWrapping": true,
             "scaleInDock": 1,
@@ -45,11 +48,11 @@
             "scaleInEditor": 1
         },
         "levels/mission01.tmx": {
-            "scale": 1,
-            "selectedLayer": 0,
+            "scale": 0.75,
+            "selectedLayer": 4,
             "viewCenter": {
-                "x": 342.5,
-                "y": 513
+                "x": 452.66666666666663,
+                "y": 333.33333333333326
             }
         },
         "levels/tutorial.tmx": {
@@ -68,7 +71,7 @@
     },
     "last.exportedFilePath": "C:/Users/USUARIO/Documents/BlindTown/levels",
     "last.externalTilesetPath": "C:/Users/USUARIO/Documents/BlindTown/assets/images/objects/vehicles/normal",
-    "last.imagePath": "C:/Users/USUARIO/Documents/BlindTown/assets/images/tiles",
+    "last.imagePath": "C:/Users/USUARIO/Documents/BlindTown/assets/images/objects/pickable",
     "map.height": 38,
     "map.lastUsedExportFilter": "Archivos Lua (*.lua)",
     "map.lastUsedFormat": "tmx",
@@ -78,7 +81,7 @@
     "openFiles": [
     ],
     "project": "BlindTown.tiled-project",
-    "property.type": "bool",
+    "property.type": "string",
     "recentFiles": [
         "assets/images/objects/nature/darkgreen_nature/Arboles.tsx",
         "assets/images/objects/other/Decoracion.tsx",
@@ -96,5 +99,5 @@
         "height": 16,
         "width": 16
     },
-    "tileset.type": 0
+    "tileset.type": 1
 }

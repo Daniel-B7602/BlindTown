@@ -9,10 +9,9 @@ return {
   height = 38,
   tilewidth = 16,
   tileheight = 16,
-  nextlayerid = 7,
-  nextobjectid = 57,
-  properties = {},
-  tilesets = {
+  nextlayerid = 8,
+  nextobjectid = 61,
+  properties = {},  tilesets = {
     {
       name = "Background_Dark-Green_TileSet",
       firstgid = 1,
@@ -178,7 +177,7 @@ return {
         { id = 164, properties = { ["collidable"] = true } },
         { id = 166, properties = { ["collidable"] = true } },
         { id = 167, properties = { ["collidable"] = true } },
-        { id = 168, properties = { ["collidable"] = true } }
+        { id = 168, properties = { ["collidable"] = true } },
       }
     },
     {
@@ -329,7 +328,7 @@ return {
         { id = 164, properties = { ["collidable"] = true } },
         { id = 166, properties = { ["collidable"] = true } },
         { id = 167, properties = { ["collidable"] = true } },
-        { id = 168, properties = { ["collidable"] = true } }
+        { id = 168, properties = { ["collidable"] = true } },
       }
     },
     {
@@ -386,7 +385,7 @@ return {
         { id = 40, image = "../assets/images/objects/vehicles/normal/Car_1_Gray.png", width = 25, height = 37, properties = { ["collidable"] = true } },
         { id = 41, image = "../assets/images/objects/vehicles/normal/Car_1_Green.png", width = 25, height = 37, properties = { ["collidable"] = true } },
         { id = 42, image = "../assets/images/objects/vehicles/normal/Car_1_Orange.png", width = 25, height = 37, properties = { ["collidable"] = true } },
-        { id = 43, image = "../assets/images/objects/vehicles/normal/Car_1_Red.png", width = 25, height = 37, properties = { ["collidable"] = true } }
+        { id = 43, image = "../assets/images/objects/vehicles/normal/Car_1_Red.png", width = 25, height = 37, properties = { ["collidable"] = true } },
       }
     },
     {
@@ -484,7 +483,7 @@ return {
         { id = 81, image = "../assets/images/objects/other/Barrel_blue_2.png", width = 15, height = 10, properties = { ["collidable"] = true } },
         { id = 82, image = "../assets/images/objects/other/Barrel_red_1.png", width = 15, height = 16, properties = { ["collidable"] = true } },
         { id = 83, image = "../assets/images/objects/other/Barrel_red_2.png", width = 15, height = 10, properties = { ["collidable"] = true } },
-        { id = 84, image = "../assets/images/objects/other/Barrel_rust_blue_1.png", width = 12, height = 16, properties = { ["collidable"] = true } }
+        { id = 84, image = "../assets/images/objects/other/Barrel_rust_blue_1.png", width = 12, height = 16, properties = { ["collidable"] = true } },
       }
     },
     {
@@ -541,7 +540,31 @@ return {
         { id = 40, image = "../assets/images/objects/nature/darkgreen_nature/Tree_8_Birch_Dark-Green.png", width = 24, height = 36, properties = { ["collidable"] = true } },
         { id = 41, image = "../assets/images/objects/nature/darkgreen_nature/Tree_9_Small-oak_Dark-Green.png", width = 39, height = 45, properties = { ["collidable"] = true } },
         { id = 42, image = "../assets/images/objects/nature/darkgreen_nature/Tree_10_Small-oak_Dark-Green.png", width = 24, height = 36, properties = { ["collidable"] = true } },
-        { id = 43, image = "../assets/images/objects/nature/darkgreen_nature/Tree-trunk_2_grass_Dark-Green.png", width = 32, height = 12, properties = { ["collidable"] = true } }
+        { id = 43, image = "../assets/images/objects/nature/darkgreen_nature/Tree-trunk_2_grass_Dark-Green.png", width = 32, height = 12, properties = { ["collidable"] = true } },
+      }
+    },
+    {
+      name = "Pickable",
+      firstgid = 920,
+      tilewidth = 11,
+      tileheight = 12,
+      spacing = 0,
+      margin = 0,
+      tilecount = 11,
+      columns = 0,
+      tileoffset = { x = 0, y = 0 },
+      tiles = {
+        { id = 0, image = "../assets/images/objects/pickable/Ammo-crate_Blue.png", width = 9, height = 7 },
+        { id = 1, image = "../assets/images/objects/pickable/Ammo-crate_Green.png", width = 9, height = 7 },
+        { id = 2, image = "../assets/images/objects/pickable/Ammo-crate_Red.png", width = 9, height = 7 },
+        { id = 3, image = "../assets/images/objects/pickable/Bandage.png", width = 5, height = 7 },
+        { id = 4, image = "../assets/images/objects/pickable/Bat.png", width = 11, height = 12 },
+        { id = 5, image = "../assets/images/objects/pickable/Bullet-box_1_Blue.png", width = 6, height = 4 },
+        { id = 6, image = "../assets/images/objects/pickable/Bullet-box_1_Green.png", width = 6, height = 4 },
+        { id = 7, image = "../assets/images/objects/pickable/Bullet-box_1_Red.png", width = 6, height = 4 },
+        { id = 8, image = "../assets/images/objects/pickable/Canned-food.png", width = 7, height = 7 },
+        { id = 9, image = "../assets/images/objects/pickable/Canned-soup.png", width = 5, height = 7 },
+        { id = 10, image = "../assets/images/objects/pickable/Pistol.png", width = 8, height = 7 },
       }
     }
   },
@@ -1517,6 +1540,90 @@ return {
           gid = 910,
           visible = true,
           properties = {}
+        }
+      }
+    },
+    {
+      type = "objectgroup",
+      draworder = "topdown",
+      id = 7,
+      name = "Pickable",
+      class = "",
+      visible = true,
+      opacity = 1,
+      offsetx = 0,
+      offsety = 0,
+      parallaxx = 1,
+      parallaxy = 1,
+      properties = {},
+      objects = {
+        {
+          id = 57,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 370,
+          y = 520.5,
+          width = 5,
+          height = 7,
+          rotation = 0,
+          opacity = 1,
+          gid = 923,
+          visible = true,
+          properties = {
+            ["tipo"] = "bandage"
+          }
+        },
+        {
+          id = 58,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 137.5,
+          y = 505,
+          width = 5,
+          height = 7,
+          rotation = 0,
+          opacity = 1,
+          gid = 923,
+          visible = true,
+          properties = {
+            ["tipo"] = "bandage"
+          }
+        },
+        {
+          id = 59,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 257.5,
+          y = 418.5,
+          width = 11,
+          height = 12,
+          rotation = 0,
+          opacity = 1,
+          gid = 924,
+          visible = true,
+          properties = {
+            ["tipo"] = "bat"
+          }
+        },
+        {
+          id = 60,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 25.5,
+          y = 219.5,
+          width = 7,
+          height = 7,
+          rotation = 0,
+          opacity = 1,
+          gid = 928,
+          visible = true,
+          properties = {
+            ["tipo"] = "canned-soup"
+          }
         }
       }
     }
