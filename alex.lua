@@ -16,7 +16,8 @@ alexModule.jugador = {
     tiempoInmune = 0,
     tiempoAtaque = 0,
     cuadroAtaque = 1,
-    golpeDetectado = false
+    golpeDetectado = false,
+    tiempoColisionSound = 0
 }
 
 function alexModule.iniciar(rutaMapa)
@@ -38,6 +39,7 @@ function alexModule.iniciar(rutaMapa)
     j.tiempoAtaque = 0
     j.cuadroAtaque = 1
     j.golpeDetectado = false
+    j.tiempoColisionSound = 0
 end
 
 function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, cambiarGameState)
@@ -46,6 +48,11 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
     -- Control de inmunidad
     if j.tiempoInmune > 0 then
         j.tiempoInmune = j.tiempoInmune - dt
+    end
+
+    -- Cooldown del sonido de colisión
+    if j.tiempoColisionSound > 0 then
+        j.tiempoColisionSound = j.tiempoColisionSound - dt
     end
 
     -- Ataque con bate
@@ -74,6 +81,7 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
                             end
                             
                             if deCara then
+                                if _G.reproducirSonido then _G.reproducirSonido("hit_bat") end
                                 z.vida = z.vida - 1
                                 z.tiempoFlashRed = 0.2
                                 
@@ -97,6 +105,7 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
                                 end
                                 
                                 if z.vida <= 0 then
+                                    if _G.reproducirSonido then _G.reproducirSonido("death_zombie") end
                                     z.estado = "death"
                                     z.tiempoMuerte = 0
                                 end
@@ -153,17 +162,28 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
             
             local nuevo_x = j.x + dx * j.velocidad * dt
             local nuevo_y = j.y + dy * j.velocidad * dt
+            local colisionado = false
             
             local col_x = nuevo_x - j.col_w / 2
             local col_y = j.y + (8 * j.escala) - j.col_h
             if not colisiona(col_x, col_y, j.col_w, j.col_h) then
                 j.x = nuevo_x
+            else
+                if dx ~= 0 then colisionado = true end
             end
             
             col_x = j.x - j.col_w / 2
             col_y = nuevo_y + (8 * j.escala) - j.col_h
             if not colisiona(col_x, col_y, j.col_w, j.col_h) then
                 j.y = nuevo_y
+            else
+                if dy ~= 0 then colisionado = true end
+            end
+
+            -- Sonido de colisión con cooldown para evitar saturación
+            if colisionado and j.tiempoColisionSound <= 0 then
+                if _G.reproducirSonido then _G.reproducirSonido("collision") end
+                j.tiempoColisionSound = 0.35
             end
         else
             j.estado = "idle"
@@ -179,6 +199,7 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
         local dist = math.sqrt(distX * distX + distY * distY)
         
         if dist < 15 then
+            if _G.reproducirSonido then _G.reproducirSonido("pickup") end
             table.insert(j.inventory, {
                 tipo = p.tipo,
                 gid = p.gid,

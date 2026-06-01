@@ -49,6 +49,9 @@ local SLOT_SIZE = 20  -- Tamaño de cada celda en píxeles originales del sprite
 local heartFullImage
 local heartEmptyImage
 
+-- Banco de efectos de sonido
+local sonidos = {}
+
 -- Sistema de avisos/mensajes temporales en UI
 local messageTimer = 0
 local messageText = ""
@@ -399,6 +402,32 @@ function love.load()
     inventoryBarImage:setFilter("nearest", "nearest")
     inventoryBarW = inventoryBarImage:getWidth()
     inventoryBarH = inventoryBarImage:getHeight()
+
+    -- Cargar efectos de sonido (SFX)
+    local function cargarSonido(nombre, ruta)
+        local success, src = pcall(love.audio.newSource, ruta, "static")
+        if success then
+            sonidos[nombre] = src
+        else
+            print("[Audio] Error al cargar sonido: " .. ruta .. " -> " .. tostring(src))
+        end
+    end
+
+    cargarSonido("death_alex", "assets/audio/sfx/alex_sfx/death_alex.wav")
+    cargarSonido("hit_bat", "assets/audio/sfx/alex_sfx/hit_bat.wav")
+    cargarSonido("death_zombie", "assets/audio/sfx/zombie_sfx/death_zombie.wav")
+    cargarSonido("zombie_attack", "assets/audio/sfx/zombie_sfx/attack.wav")
+    cargarSonido("pickup", "assets/audio/sfx/alex_sfx/pickup_objects.wav")
+    cargarSonido("collision", "assets/audio/sfx/environment_sfx/collision.wav")
+
+    -- Función global para reproducir sonido de forma polifónica
+    _G.reproducirSonido = function(nombre)
+        local src = sonidos[nombre]
+        if src then
+            local clon = src:clone()
+            clon:play()
+        end
+    end
 end
 
 function love.update(dt)

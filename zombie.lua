@@ -108,6 +108,7 @@ function zombieModule.update(dt, colisiona, jugador, cambiarGameState)
                             z.tiempoUltimoAtaque = z.cooldownAtaque
                             
                             if jugador.tiempoInmune <= 0 then
+                                if _G.reproducirSonido then _G.reproducirSonido("zombie_attack") end
                                 jugador.vida = jugador.vida - 1
                                 jugador.tiempoInmune = 1.5
                                 
@@ -126,6 +127,7 @@ function zombieModule.update(dt, colisiona, jugador, cambiarGameState)
                                 end
                                 
                                 if jugador.vida <= 0 then
+                                    if _G.reproducirSonido then _G.reproducirSonido("death_alex") end
                                     cambiarGameState("gameover")
                                 end
                             end
