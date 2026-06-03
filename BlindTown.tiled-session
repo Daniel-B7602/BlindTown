@@ -1,6 +1,19 @@
 {
-    "activeFile": "",
+    "activeFile": "levels/mission01.tmx",
     "expandedProjectPaths": [
+        "assets",
+        "assets/images/tiles/buildings",
+        "assets/images/objects/other",
+        "levels",
+        "assets/images/objects/nature",
+        "assets/images/objects/vehicles",
+        "assets/images/objects/vehicles/normal",
+        "assets/images/tiles",
+        "assets/images/objects/nature/darkgreen_nature",
+        ".",
+        "assets/images/objects",
+        "assets/images",
+        "assets/images/objects/pickable"
     ],
     "fileStates": {
         "assets/images/objects/container/Container_1_Gray_Vertical.tsx": {
@@ -8,14 +21,18 @@
             "scaleInEditor": 1
         },
         "assets/images/objects/nature/darkgreen_nature/Arboles.tsx": {
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "assets/images/objects/other/Decoracion.tsx": {
             "dynamicWrapping": true,
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "assets/images/objects/pickable/Pickable.tsx": {
-            "dynamicWrapping": true
+            "dynamicWrapping": true,
+            "scaleInDock": 4,
+            "scaleInEditor": 8
         },
         "assets/images/objects/vehicles/normal/Car_8_Blue_Bus.tsx": {
             "dynamicWrapping": true,
@@ -24,17 +41,22 @@
         },
         "assets/images/objects/vehicles/normal/Vehiculos.tsx": {
             "dynamicWrapping": true,
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "assets/images/tiles/Background_Bleak-Yellow_TileSet.tsx": {
-            "dynamicWrapping": false
+            "dynamicWrapping": false,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         },
         "assets/images/tiles/Background_Dark-Green_TileSet.tsx": {
             "dynamicWrapping": false,
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "assets/images/tiles/buildings/Buildings_beige_TileSet.tsx": {
             "dynamicWrapping": false,
+            "scaleInDock": 1,
             "scaleInEditor": 2
         },
         "assets/images/tiles/buildings/Buildings_white_TileSet.tsx": {
@@ -49,15 +71,16 @@
         },
         "levels/mission01.tmx": {
             "expandedObjectLayers": [
+                6,
                 3,
                 4,
                 5
             ],
-            "scale": 1.5,
+            "scale": 1,
             "selectedLayer": 5,
             "viewCenter": {
-                "x": 202.33333333333331,
-                "y": 153.33333333333334
+                "x": 338.5,
+                "y": 213
             }
         },
         "levels/tutorial.tmx": {
@@ -71,7 +94,7 @@
             "selectedLayer": 5,
             "viewCenter": {
                 "x": 440,
-                "y": 384
+                "y": 204
             }
         }
     },
@@ -85,10 +108,18 @@
     "map.tileWidth": 16,
     "map.width": 50,
     "openFiles": [
+        "levels/tutorial.tmx",
+        "levels/mission01.tmx",
+        "assets/images/tiles/Background_Bleak-Yellow_TileSet.tsx",
+        "assets/images/objects/pickable/Pickable.tsx"
     ],
     "project": "BlindTown.tiled-project",
     "property.type": "string",
     "recentFiles": [
+        "levels/tutorial.tmx",
+        "assets/images/objects/pickable/Pickable.tsx",
+        "assets/images/tiles/Background_Bleak-Yellow_TileSet.tsx",
+        "levels/mission01.tmx",
         "assets/images/objects/nature/darkgreen_nature/Arboles.tsx",
         "assets/images/objects/other/Decoracion.tsx",
         "assets/images/objects/vehicles/normal/Vehiculos.tsx",
@@ -96,8 +127,7 @@
         "assets/images/tiles/buildings/Buildings_white_TileSet.tsx",
         "levels/Car_8_Blue_Bus.tsx",
         "assets/images/objects/vehicles/normal/Car_8_Blue_Bus.tsx",
-        "assets/images/objects/container/Container_1_Gray_Vertical.tsx",
-        "assets/images/tiles/Background_Dark-Green_TileSet.tsx"
+        "assets/images/objects/container/Container_1_Gray_Vertical.tsx"
     ],
     "tileset.lastUsedFilter": "Todos los archivos (*)",
     "tileset.lastUsedFormat": "tsx",

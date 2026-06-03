@@ -74,6 +74,7 @@ end
 -- Sistema de avisos/mensajes temporales en UI
 local messageTimer = 0
 local messageText = ""
+local tutorialVoiceTimer = 4.0
 
 local function mostrarMensaje(texto)
     messageText = texto
@@ -345,6 +346,7 @@ local function iniciarNivel(rutaMapa)
     if rutaMapa == "levels/tutorial.lua" then
         _G.tutorialActive = true
         _G.resetTutorialFlags()
+        tutorialVoiceTimer = 10.0 -- Dar tiempo para que suene la voz de bienvenida/inicial
         if _G.reproducirVoz then
             _G.reproducirVoz("voz_tutorial_movimiento_alex")
         end
@@ -467,6 +469,12 @@ function love.load()
     cargarSonido("voz_tutorial_info_pickables", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_info_pickables.wav")
     cargarSonido("voz_tutorial_movimiento_alex", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_movimiento_alex.wav")
 
+    -- Cargar audios de indicación de dirección para el tutorial
+    cargarSonido("abajo", "assets/audio/guide_voice/indication_voice/abajo.wav")
+    cargarSonido("arriba", "assets/audio/guide_voice/indication_voice/arriba.wav")
+    cargarSonido("derecha", "assets/audio/guide_voice/indication_voice/derecha.wav")
+    cargarSonido("izquierda", "assets/audio/guide_voice/indication_voice/izquierda.wav")
+
     -- Función global para reproducir sonido de forma polifónica
     _G.reproducirSonido = function(nombre)
         local src = sonidos[nombre]
@@ -578,6 +586,103 @@ function love.update(dt)
                 _G.reproducirVoz("voz_tutorial_final")
             end
         end
+    end
+
+    -- Guía por voz del tutorial hacia los pickables y enemigos
+    if _G.tutorialActive and gameState == "play" then
+        tutorialVoiceTimer = tutorialVoiceTimer - dt
+        if tutorialVoiceTimer <= 0 then
+            -- Solo reproducir si no hay un audio del tutorial (no direccional) sonando actualmente
+            local isDirectionVoice = (currentVoiceName == "abajo" or currentVoiceName == "arriba" or currentVoiceName == "derecha" or currentVoiceName == "izquierda")
+            local voiceIsPlaying = currentVoiceSource and currentVoiceSource:isPlaying()
+            
+            if not voiceIsPlaying or isDirectionVoice then
+                -- 1. Definir una variable 'objetivoActual = nil'
+                local objetivoActual = nil
+                
+                -- Verificar si el jugador tiene el bate en el inventario
+                local tieneBate = false
+                for _, item in ipairs(jugador.inventory) do
+                    if item.tipo == "bat" then
+                        tieneBate = true
+                        break
+                    end
+                end
+                
+                -- Verificar si el zombie está vivo
+                local zombieVivo = false
+                local zombiePos = nil
+                for _, z in ipairs(zombieModule.zombies) do
+                    if z.activo and z.vida > 0 then
+                        zombieVivo = true
+                        zombiePos = { x = z.x, y = z.y }
+                        break
+                    end
+                end
+                
+                -- 2. Orden de asignación dinámica
+                if not tieneBate then
+                    -- Si el jugador NO tiene el bate en el inventario, objetivoActual será la posición del bate
+                    for _, p in ipairs(pickups) do
+                        if p.tipo == "bat" then
+                            objetivoActual = { x = p.cx, y = p.cy }
+                            break
+                        end
+                    end
+                elseif zombieVivo then
+                    -- Si ya tiene el bate pero el zombie está vivo, objetivoActual será la posición del zombie
+                    objetivoActual = zombiePos
+                else
+                    -- Si el zombie murió, objetivoActual será el pickup más cercano que quede en el mapa (vendas o comida)
+                    local minDist = math.huge
+                    local nearestPickup = nil
+                    for _, p in ipairs(pickups) do
+                        if p.tipo == "bandage" or p.tipo == "canned-soup" or p.tipo == "canned-food" then
+                            local dx = jugador.x - p.cx
+                            local dy = jugador.y - p.cy
+                            local dist = math.sqrt(dx * dx + dy * dy)
+                            if dist < minDist then
+                                minDist = dist
+                                nearestPickup = { x = p.cx, y = p.cy }
+                            end
+                        end
+                    end
+                    objetivoActual = nearestPickup
+                end
+                
+                -- 3. Si objetivoActual no es nil, calcular la dirección
+                if objetivoActual then
+                    local dx = math.abs(objetivoActual.x - jugador.x)
+                    local dy = math.abs(objetivoActual.y - jugador.y)
+                    local direccion = nil
+                    
+                    if dx > dy then
+                        if objetivoActual.x > jugador.x then
+                            direccion = "derecha"
+                        else
+                            direccion = "izquierda"
+                        end
+                    else
+                        if objetivoActual.y > jugador.y then
+                            direccion = "abajo"
+                        else
+                            direccion = "arriba"
+                        end
+                    end
+                    
+                    -- 4. Reproducir el audio de la dirección correspondiente
+                    if direccion and _G.reproducirVoz then
+                        _G.reproducirVoz(direccion)
+                    end
+                end
+                tutorialVoiceTimer = 4.0
+            else
+                -- Si hay un diálogo explicativo sonando, volver a intentar en 1.5 segundos
+                tutorialVoiceTimer = 1.5
+            end
+        end
+    else
+        tutorialVoiceTimer = 4.0
     end
     
     -- Manejo del temporizador global para la animación activa
