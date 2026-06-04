@@ -209,13 +209,29 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
                     
                     local dir = nil
                     if blockedDir == "derecha" or blockedDir == "izquierda" then
-                        if upFree then dir = "arriba"
+                        if upFree and downFree then
+                            if _G.objetivoActual then
+                                local distUp = math.abs((j.y - 24) - _G.objetivoActual.y)
+                                local distDown = math.abs((j.y + 24) - _G.objetivoActual.y)
+                                dir = (distUp < distDown) and "arriba" or "abajo"
+                            else
+                                dir = "arriba"
+                            end
+                        elseif upFree then dir = "arriba"
                         elseif downFree then dir = "abajo"
                         elseif blockedDir == "derecha" and leftFree then dir = "izquierda"
                         elseif blockedDir == "izquierda" and rightFree then dir = "derecha"
                         end
                     elseif blockedDir == "arriba" or blockedDir == "abajo" then
-                        if rightFree then dir = "derecha"
+                        if rightFree and leftFree then
+                            if _G.objetivoActual then
+                                local distRight = math.abs((j.x + 24) - _G.objetivoActual.x)
+                                local distLeft = math.abs((j.x - 24) - _G.objetivoActual.x)
+                                dir = (distRight < distLeft) and "derecha" or "izquierda"
+                            else
+                                dir = "derecha"
+                            end
+                        elseif rightFree then dir = "derecha"
                         elseif leftFree then dir = "izquierda"
                         elseif blockedDir == "arriba" and downFree then dir = "abajo"
                         elseif blockedDir == "abajo" and upFree then dir = "arriba"
@@ -231,8 +247,8 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
                         end
                     end
                     
-                    if _G.activarAlertaObstaculo then
-                        _G.activarAlertaObstaculo(dir)
+                    if _G.activarAlertaObstaculo and blockedDir then
+                        _G.activarAlertaObstaculo(blockedDir, dir)
                     end
                 end
             end

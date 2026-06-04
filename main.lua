@@ -75,20 +75,28 @@ end
 local messageTimer = 0
 local messageText = ""
 local tutorialVoiceTimer = 4.0
-local obstaculoDetectado = false
-local stuckAccumulator = 0
-local lastIndicatedDirection = nil
 
--- Función global para forzar la alerta de obstáculo (usada al colisionar)
-_G.activarAlertaObstaculo = function(direccionEvasion)
-    obstaculoDetectado = true
-    stuckAccumulator = 0
-    lastIndicatedDirection = direccionEvasion
-    tutorialVoiceTimer = 4.0
-    if _G.reproducirVoz then
-        local audio = (direccionEvasion == "derecha") and "obstaculo_derecha" or "obstaculo_izquierda"
-        _G.reproducirVoz(audio)
+-- Sistema de evasión de obstáculos (nuevo algoritmo basado en eje bloqueado)
+local bloqueado_eje = nil          -- "X" o "Y": eje donde el jugador está atascado
+local direccion_bloqueada = nil    -- "derecha"/"izquierda"/"arriba"/"abajo": la dirección original bloqueada
+local direccion_escape = nil       -- "derecha"/"izquierda"/"arriba"/"abajo": la salida lateral calculada
+local posicion_escape_inicio = nil -- {x, y}: posición donde se activó el escape (para medir avance lateral)
+local lastIndicatedDirection = nil -- Última dirección indicada por la voz (para el timer de voz)
+
+-- Función global para activar la alerta de obstáculo (invocada desde alex.lua al colisionar)
+_G.activarAlertaObstaculo = function(dir_bloqueada, dir_evasion)
+    -- dir_bloqueada: dirección en la que el jugador chocó ("derecha", "izquierda", "arriba", "abajo")
+    -- dir_evasion: la salida óptima calculada por alex.lua
+    if dir_bloqueada == "derecha" or dir_bloqueada == "izquierda" then
+        bloqueado_eje = "X"
+    else
+        bloqueado_eje = "Y"
     end
+    direccion_bloqueada = dir_bloqueada
+    direccion_escape = dir_evasion
+    posicion_escape_inicio = { x = jugador.x, y = jugador.y }
+    lastIndicatedDirection = dir_evasion
+    tutorialVoiceTimer = 0.1  -- Disparar la voz casi inmediatamente
 end
 
 local function mostrarMensaje(texto)
@@ -700,88 +708,94 @@ function love.update(dt)
             objetivoActual = nearestPickup
         end
 
-        -- 2. Detector de atasco: verificar si presiona la tecla sugerida pero no se mueve
-        if lastIndicatedDirection then
-            local pressingCorrectKey = false
-            if lastIndicatedDirection == "derecha" and (love.keyboard.isDown("d") or love.keyboard.isDown("right")) then
-                pressingCorrectKey = true
-            elseif lastIndicatedDirection == "izquierda" and (love.keyboard.isDown("a") or love.keyboard.isDown("left")) then
-                pressingCorrectKey = true
-            elseif lastIndicatedDirection == "arriba" and (love.keyboard.isDown("w") or love.keyboard.isDown("up")) then
-                pressingCorrectKey = true
-            elseif lastIndicatedDirection == "abajo" and (love.keyboard.isDown("s") or love.keyboard.isDown("down")) then
-                pressingCorrectKey = true
+        -- Exponer objetivoActual como global para que alex.lua lo use al calcular evasión
+        _G.objetivoActual = objetivoActual
+
+        -- 2. Verificar si el estado de escape debe desactivarse
+        if bloqueado_eje and objetivoActual and posicion_escape_inicio then
+            -- Medir cuánto ha avanzado lateralmente el jugador desde que se activó el escape
+            local avanceLateral = 0
+            if bloqueado_eje == "Y" then
+                avanceLateral = math.abs(jugador.x - posicion_escape_inicio.x)
+            elseif bloqueado_eje == "X" then
+                avanceLateral = math.abs(jugador.y - posicion_escape_inicio.y)
             end
             
-            if pressingCorrectKey and actualMovement < 5 * dt then
-                stuckAccumulator = stuckAccumulator + dt
-                if stuckAccumulator >= 0.6 then
-                    obstaculoDetectado = true
-                end
-            else
-                if not pressingCorrectKey or actualMovement >= 5 * dt then
-                    stuckAccumulator = 0
-                end
-            end
-        else
-            stuckAccumulator = 0
-        end
-
-        -- 3. Si obstaculoDetectado es verdadero, verificar si ya se liberó la línea de visión al objetivo
-        if obstaculoDetectado and objetivoActual then
-            if lineaLibre(jugador.x, jugador.y, objetivoActual.x, objetivoActual.y) then
-                obstaculoDetectado = false
-                stuckAccumulator = 0
+            -- Desactivar escape SÓLO si se avanzó suficiente lateralmente Y la línea al objetivo está libre
+            if avanceLateral >= 20 and lineaLibre(jugador.x, jugador.y, objetivoActual.x, objetivoActual.y) then
+                bloqueado_eje = nil
+                direccion_bloqueada = nil
+                direccion_escape = nil
+                posicion_escape_inicio = nil
             end
         end
+        
+        -- Si no hay objetivo, limpiar estado de escape
+        if not objetivoActual then
+            bloqueado_eje = nil
+            direccion_bloqueada = nil
+            direccion_escape = nil
+            posicion_escape_inicio = nil
+        end
 
-        -- 4. Temporizador de voz guía
+        -- 3. Temporizador de voz guía
         tutorialVoiceTimer = tutorialVoiceTimer - dt
         if tutorialVoiceTimer <= 0 then
             local isDirectionVoice = (currentVoiceName == "abajo" or currentVoiceName == "arriba" or currentVoiceName == "derecha" or currentVoiceName == "izquierda" or currentVoiceName == "obstaculo_derecha" or currentVoiceName == "obstaculo_izquierda" or currentVoiceName == "obstaculo_arriba" or currentVoiceName == "obstaculo_abajo" or currentVoiceName == "enemigo_abajo" or currentVoiceName == "enemigo_arriba" or currentVoiceName == "enemigo_derecha" or currentVoiceName == "enemigo_izquierda")
             local voiceIsPlaying = currentVoiceSource and currentVoiceSource:isPlaying()
             
             if not voiceIsPlaying or isDirectionVoice then
-                if obstaculoDetectado then
-                    -- Evaluar si arriba, abajo, derecha o izquierda están libres de colisión (offset de 24 píxeles)
+                if bloqueado_eje and direccion_escape then
+                    -- MODO ESCAPE: indicar estrictamente la dirección de escape del obstáculo
+                    -- Recalcular por si las condiciones del mapa cambiaron
                     local rightFree = not colisiona(jugador.x + 24 - jugador.col_w/2, jugador.y + (8 * jugador.escala) - jugador.col_h, jugador.col_w, jugador.col_h)
                     local leftFree = not colisiona(jugador.x - 24 - jugador.col_w/2, jugador.y + (8 * jugador.escala) - jugador.col_h, jugador.col_w, jugador.col_h)
                     local upFree = not colisiona(jugador.x - jugador.col_w/2, jugador.y + (8 * jugador.escala) - 24 - jugador.col_h, jugador.col_w, jugador.col_h)
                     local downFree = not colisiona(jugador.x - jugador.col_w/2, jugador.y + (8 * jugador.escala) + 24 - jugador.col_h, jugador.col_w, jugador.col_h)
                     
-                    local blockedDir = lastIndicatedDirection
-                    local direccionEvasion = nil
+                    -- Verificar que la dirección de escape sigue siendo válida
+                    local escapeValida = false
+                    if direccion_escape == "derecha" and rightFree then escapeValida = true
+                    elseif direccion_escape == "izquierda" and leftFree then escapeValida = true
+                    elseif direccion_escape == "arriba" and upFree then escapeValida = true
+                    elseif direccion_escape == "abajo" and downFree then escapeValida = true
+                    end
                     
-                    -- Evitar a toda costa recomendar la dirección bloqueada
-                    if blockedDir == "derecha" or blockedDir == "izquierda" then
-                        if upFree then direccionEvasion = "arriba"
-                        elseif downFree then direccionEvasion = "abajo"
-                        elseif blockedDir == "derecha" and leftFree then direccionEvasion = "izquierda"
-                        elseif blockedDir == "izquierda" and rightFree then direccionEvasion = "derecha"
+                    if not escapeValida then
+                        -- Recalcular dirección de escape excluyendo la dirección bloqueada
+                        local nuevaEscape = nil
+                        if bloqueado_eje == "Y" then
+                            -- Bloqueado en Y: probar laterales (derecha/izquierda)
+                            if rightFree and leftFree and objetivoActual then
+                                local dR = math.abs((jugador.x + 24) - objetivoActual.x)
+                                local dL = math.abs((jugador.x - 24) - objetivoActual.x)
+                                nuevaEscape = (dR < dL) and "derecha" or "izquierda"
+                            elseif rightFree then nuevaEscape = "derecha"
+                            elseif leftFree then nuevaEscape = "izquierda"
+                            end
+                        elseif bloqueado_eje == "X" then
+                            -- Bloqueado en X: probar laterales (arriba/abajo)
+                            if upFree and downFree and objetivoActual then
+                                local dU = math.abs((jugador.y - 24) - objetivoActual.y)
+                                local dD = math.abs((jugador.y + 24) - objetivoActual.y)
+                                nuevaEscape = (dU < dD) and "arriba" or "abajo"
+                            elseif upFree then nuevaEscape = "arriba"
+                            elseif downFree then nuevaEscape = "abajo"
+                            end
                         end
-                    elseif blockedDir == "arriba" or blockedDir == "abajo" then
-                        if rightFree then direccionEvasion = "derecha"
-                        elseif leftFree then direccionEvasion = "izquierda"
-                        elseif blockedDir == "arriba" and downFree then direccionEvasion = "abajo"
-                        elseif blockedDir == "abajo" and upFree then direccionEvasion = "arriba"
+                        
+                        if nuevaEscape then
+                            direccion_escape = nuevaEscape
                         end
                     end
                     
-                    if not direccionEvasion then
-                        if rightFree then direccionEvasion = "derecha"
-                        elseif leftFree then direccionEvasion = "izquierda"
-                        elseif upFree then direccionEvasion = "arriba"
-                        elseif downFree then direccionEvasion = "abajo"
-                        else direccionEvasion = "derecha"
-                        end
-                    end
-                    
-                    local audioAPlayar = "obstaculo_" .. direccionEvasion
-                    if audioAPlayar and _G.reproducirVoz then
+                    local audioAPlayar = "obstaculo_" .. direccion_escape
+                    if _G.reproducirVoz then
                         _G.reproducirVoz(audioAPlayar)
-                        lastIndicatedDirection = direccionEvasion
+                        lastIndicatedDirection = direccion_escape
                     end
                 else
+                    -- MODO NORMAL: indicar dirección hacia el objetivo
                     if objetivoActual then
                         local dx = math.abs(objetivoActual.x - jugador.x)
                         local dy = math.abs(objetivoActual.y - jugador.y)
@@ -820,8 +834,10 @@ function love.update(dt)
         end
     else
         tutorialVoiceTimer = 4.0
-        stuckAccumulator = 0
-        obstaculoDetectado = false
+        bloqueado_eje = nil
+        direccion_bloqueada = nil
+        direccion_escape = nil
+        posicion_escape_inicio = nil
         lastIndicatedDirection = nil
     end
     
