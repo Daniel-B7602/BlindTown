@@ -192,6 +192,49 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
             if colisionado and j.tiempoColisionSound <= 0 then
                 if _G.reproducirSonido then _G.reproducirSonido("collision") end
                 j.tiempoColisionSound = 0.35
+                
+                -- Si el tutorial está activo, también reproducir la voz de evasión de obstáculo
+                if _G.tutorialActive then
+                    local rightFree = not colisiona(j.x + 24 - j.col_w/2, j.y + (8 * j.escala) - j.col_h, j.col_w, j.col_h)
+                    local leftFree = not colisiona(j.x - 24 - j.col_w/2, j.y + (8 * j.escala) - j.col_h, j.col_w, j.col_h)
+                    local upFree = not colisiona(j.x - j.col_w/2, j.y + (8 * j.escala) - 24 - j.col_h, j.col_w, j.col_h)
+                    local downFree = not colisiona(j.x - j.col_w/2, j.y + (8 * j.escala) + 24 - j.col_h, j.col_w, j.col_h)
+                    
+                    local blockedDir = nil
+                    if dx > 0 then blockedDir = "derecha"
+                    elseif dx < 0 then blockedDir = "izquierda"
+                    elseif dy > 0 then blockedDir = "abajo"
+                    elseif dy < 0 then blockedDir = "arriba"
+                    end
+                    
+                    local dir = nil
+                    if blockedDir == "derecha" or blockedDir == "izquierda" then
+                        if upFree then dir = "arriba"
+                        elseif downFree then dir = "abajo"
+                        elseif blockedDir == "derecha" and leftFree then dir = "izquierda"
+                        elseif blockedDir == "izquierda" and rightFree then dir = "derecha"
+                        end
+                    elseif blockedDir == "arriba" or blockedDir == "abajo" then
+                        if rightFree then dir = "derecha"
+                        elseif leftFree then dir = "izquierda"
+                        elseif blockedDir == "arriba" and downFree then dir = "abajo"
+                        elseif blockedDir == "abajo" and upFree then dir = "arriba"
+                        end
+                    end
+                    
+                    if not dir then
+                        if rightFree then dir = "derecha"
+                        elseif leftFree then dir = "izquierda"
+                        elseif upFree then dir = "arriba"
+                        elseif downFree then dir = "abajo"
+                        else dir = "derecha"
+                        end
+                    end
+                    
+                    if _G.activarAlertaObstaculo then
+                        _G.activarAlertaObstaculo(dir)
+                    end
+                end
             end
         else
             j.estado = "idle"

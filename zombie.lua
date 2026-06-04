@@ -13,7 +13,7 @@ local function crearZombi(startX, startY, colisiona)
         escala = 1.5,
         col_w = 12,
         col_h = 8,
-        rangoDeteccion = 180,
+        rangoDeteccion = 70,
         cooldownAtaque = 1.5,
         tiempoUltimoAtaque = 0,
         tiempoFlashRed = 0,
@@ -75,7 +75,18 @@ function zombieModule.update(dt, colisiona, jugador, cambiarGameState)
                 local distY = jugador.y - z.y
                 local dist = math.sqrt(distX * distX + distY * distY)
                 
-                if dist < z.rangoDeteccion and jugador.vida > 0 then
+                local tieneBate = true
+                if _G.tutorialActive then
+                    tieneBate = false
+                    for _, item in ipairs(jugador.inventory) do
+                        if item.tipo == "bat" then
+                            tieneBate = true
+                            break
+                        end
+                    end
+                end
+                
+                if tieneBate and dist < z.rangoDeteccion and jugador.vida > 0 then
                     z.estado = "walk"
                     
                     if math.abs(distX) > math.abs(distY) then

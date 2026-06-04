@@ -75,6 +75,21 @@ end
 local messageTimer = 0
 local messageText = ""
 local tutorialVoiceTimer = 4.0
+local obstaculoDetectado = false
+local stuckAccumulator = 0
+local lastIndicatedDirection = nil
+
+-- Función global para forzar la alerta de obstáculo (usada al colisionar)
+_G.activarAlertaObstaculo = function(direccionEvasion)
+    obstaculoDetectado = true
+    stuckAccumulator = 0
+    lastIndicatedDirection = direccionEvasion
+    tutorialVoiceTimer = 4.0
+    if _G.reproducirVoz then
+        local audio = (direccionEvasion == "derecha") and "obstaculo_derecha" or "obstaculo_izquierda"
+        _G.reproducirVoz(audio)
+    end
+end
 
 local function mostrarMensaje(texto)
     messageText = texto
@@ -224,6 +239,29 @@ local function colisiona(x, y, w, h)
         end
     end
     return false
+end
+
+-- Determinar si una línea recta entre dos puntos está libre de colisiones (muestreando cada 12 píxeles)
+local function lineaLibre(x1, y1, x2, y2)
+    local dx = x2 - x1
+    local dy = y2 - y1
+    local dist = math.sqrt(dx * dx + dy * dy)
+    if dist < 16 then return true end
+    
+    local stepSize = 12
+    local steps = math.floor(dist / stepSize)
+    for i = 1, steps - 1 do
+        local t = i * stepSize / dist
+        local px = x1 + dx * t
+        local py = y1 + dy * t
+        
+        local col_x = px - jugador.col_w / 2
+        local col_y = py + (8 * jugador.escala) - jugador.col_h
+        if colisiona(col_x, col_y, jugador.col_w, jugador.col_h) then
+            return false
+        end
+    end
+    return true
 end
 
 -- Corregir ruta de imagen del mapa (las rutas del tileset usan '../' relativo a levels/)
@@ -474,6 +512,14 @@ function love.load()
     cargarSonido("arriba", "assets/audio/guide_voice/indication_voice/arriba.wav")
     cargarSonido("derecha", "assets/audio/guide_voice/indication_voice/derecha.wav")
     cargarSonido("izquierda", "assets/audio/guide_voice/indication_voice/izquierda.wav")
+    cargarSonido("obstaculo_derecha", "assets/audio/guide_voice/indication_voice/obstaculo_derecha.wav")
+    cargarSonido("obstaculo_izquierda", "assets/audio/guide_voice/indication_voice/obstaculo_izquierda.wav")
+    cargarSonido("obstaculo_arriba", "assets/audio/guide_voice/indication_voice/obstaculo_arriba.wav")
+    cargarSonido("obstaculo_abajo", "assets/audio/guide_voice/indication_voice/obstaculo_abajo.wav")
+    cargarSonido("enemigo_abajo", "assets/audio/guide_voice/indication_voice/enemigo_abajo.wav")
+    cargarSonido("enemigo_arriba", "assets/audio/guide_voice/indication_voice/enemigo_arriba.wav")
+    cargarSonido("enemigo_derecha", "assets/audio/guide_voice/indication_voice/enemigo_derecha.wav")
+    cargarSonido("enemigo_izquierda", "assets/audio/guide_voice/indication_voice/enemigo_izquierda.wav")
 
     -- Función global para reproducir sonido de forma polifónica
     _G.reproducirSonido = function(nombre)
@@ -564,9 +610,17 @@ function love.update(dt)
         end
     end
 
+    local prevPlayerX = jugador.x
+    local prevPlayerY = jugador.y
+
     -- Actualizar módulos delegados
     alexModule.update(dt, colisiona, zombieModule.zombies, pickups, mostrarMensaje, cambiarGameState)
     zombieModule.update(dt, colisiona, jugador, cambiarGameState)
+
+    -- Calcular movimiento real de Alex en este frame
+    local movedX = math.abs(jugador.x - prevPlayerX)
+    local movedY = math.abs(jugador.y - prevPlayerY)
+    local actualMovement = math.sqrt(movedX * movedX + movedY * movedY)
 
     -- Verificar si el tutorial ha finalizado
     if _G.tutorialActive and mapa and mapa.ruta == "levels/tutorial.lua" then
@@ -588,101 +642,187 @@ function love.update(dt)
         end
     end
 
-    -- Guía por voz del tutorial hacia los pickables y enemigos
+    -- Guía por voz del tutorial hacia los pickables y enemigos (con evasión de obstáculos)
     if _G.tutorialActive and gameState == "play" then
+        -- 1. Calcular el objetivo actual dinámicamente
+        local objetivoActual = nil
+        
+        -- Verificar si el jugador tiene el bate en el inventario
+        local tieneBate = false
+        for _, item in ipairs(jugador.inventory) do
+            if item.tipo == "bat" then
+                tieneBate = true
+                break
+            end
+        end
+        
+        -- Verificar si el zombie está vivo y calcular la distancia hacia él
+        local zombieVivo = false
+        local zombiePos = nil
+        local distZombie = math.huge
+        for _, z in ipairs(zombieModule.zombies) do
+            if z.activo and z.vida > 0 then
+                zombieVivo = true
+                zombiePos = { x = z.x, y = z.y }
+                local dx = jugador.x - z.x
+                local dy = jugador.y - z.y
+                distZombie = math.sqrt(dx * dx + dy * dy)
+                break
+            end
+        end
+        
+        if not tieneBate then
+            -- Si el jugador NO tiene el bate en el inventario, objetivoActual será la posición del bate
+            for _, p in ipairs(pickups) do
+                if p.tipo == "bat" then
+                    objetivoActual = { x = p.cx, y = p.cy }
+                    break
+                end
+            end
+        elseif zombieVivo then
+            -- Si ya tiene el bate pero el zombie está vivo, objetivoActual será la posición del zombie
+            objetivoActual = zombiePos
+        else
+            -- Si el zombie murió, objetivoActual será el pickup más cercano que quede en el mapa (vendas o comida)
+            local minDist = math.huge
+            local nearestPickup = nil
+            for _, p in ipairs(pickups) do
+                if p.tipo == "bandage" or p.tipo == "canned-soup" or p.tipo == "canned-food" then
+                    local dx = jugador.x - p.cx
+                    local dy = jugador.y - p.cy
+                    local dist = math.sqrt(dx * dx + dy * dy)
+                    if dist < minDist then
+                        minDist = dist
+                        nearestPickup = { x = p.cx, y = p.cy }
+                    end
+                end
+            end
+            objetivoActual = nearestPickup
+        end
+
+        -- 2. Detector de atasco: verificar si presiona la tecla sugerida pero no se mueve
+        if lastIndicatedDirection then
+            local pressingCorrectKey = false
+            if lastIndicatedDirection == "derecha" and (love.keyboard.isDown("d") or love.keyboard.isDown("right")) then
+                pressingCorrectKey = true
+            elseif lastIndicatedDirection == "izquierda" and (love.keyboard.isDown("a") or love.keyboard.isDown("left")) then
+                pressingCorrectKey = true
+            elseif lastIndicatedDirection == "arriba" and (love.keyboard.isDown("w") or love.keyboard.isDown("up")) then
+                pressingCorrectKey = true
+            elseif lastIndicatedDirection == "abajo" and (love.keyboard.isDown("s") or love.keyboard.isDown("down")) then
+                pressingCorrectKey = true
+            end
+            
+            if pressingCorrectKey and actualMovement < 5 * dt then
+                stuckAccumulator = stuckAccumulator + dt
+                if stuckAccumulator >= 0.6 then
+                    obstaculoDetectado = true
+                end
+            else
+                if not pressingCorrectKey or actualMovement >= 5 * dt then
+                    stuckAccumulator = 0
+                end
+            end
+        else
+            stuckAccumulator = 0
+        end
+
+        -- 3. Si obstaculoDetectado es verdadero, verificar si ya se liberó la línea de visión al objetivo
+        if obstaculoDetectado and objetivoActual then
+            if lineaLibre(jugador.x, jugador.y, objetivoActual.x, objetivoActual.y) then
+                obstaculoDetectado = false
+                stuckAccumulator = 0
+            end
+        end
+
+        -- 4. Temporizador de voz guía
         tutorialVoiceTimer = tutorialVoiceTimer - dt
         if tutorialVoiceTimer <= 0 then
-            -- Solo reproducir si no hay un audio del tutorial (no direccional) sonando actualmente
-            local isDirectionVoice = (currentVoiceName == "abajo" or currentVoiceName == "arriba" or currentVoiceName == "derecha" or currentVoiceName == "izquierda")
+            local isDirectionVoice = (currentVoiceName == "abajo" or currentVoiceName == "arriba" or currentVoiceName == "derecha" or currentVoiceName == "izquierda" or currentVoiceName == "obstaculo_derecha" or currentVoiceName == "obstaculo_izquierda" or currentVoiceName == "obstaculo_arriba" or currentVoiceName == "obstaculo_abajo" or currentVoiceName == "enemigo_abajo" or currentVoiceName == "enemigo_arriba" or currentVoiceName == "enemigo_derecha" or currentVoiceName == "enemigo_izquierda")
             local voiceIsPlaying = currentVoiceSource and currentVoiceSource:isPlaying()
             
             if not voiceIsPlaying or isDirectionVoice then
-                -- 1. Definir una variable 'objetivoActual = nil'
-                local objetivoActual = nil
-                
-                -- Verificar si el jugador tiene el bate en el inventario
-                local tieneBate = false
-                for _, item in ipairs(jugador.inventory) do
-                    if item.tipo == "bat" then
-                        tieneBate = true
-                        break
-                    end
-                end
-                
-                -- Verificar si el zombie está vivo
-                local zombieVivo = false
-                local zombiePos = nil
-                for _, z in ipairs(zombieModule.zombies) do
-                    if z.activo and z.vida > 0 then
-                        zombieVivo = true
-                        zombiePos = { x = z.x, y = z.y }
-                        break
-                    end
-                end
-                
-                -- 2. Orden de asignación dinámica
-                if not tieneBate then
-                    -- Si el jugador NO tiene el bate en el inventario, objetivoActual será la posición del bate
-                    for _, p in ipairs(pickups) do
-                        if p.tipo == "bat" then
-                            objetivoActual = { x = p.cx, y = p.cy }
-                            break
+                if obstaculoDetectado then
+                    -- Evaluar si arriba, abajo, derecha o izquierda están libres de colisión (offset de 24 píxeles)
+                    local rightFree = not colisiona(jugador.x + 24 - jugador.col_w/2, jugador.y + (8 * jugador.escala) - jugador.col_h, jugador.col_w, jugador.col_h)
+                    local leftFree = not colisiona(jugador.x - 24 - jugador.col_w/2, jugador.y + (8 * jugador.escala) - jugador.col_h, jugador.col_w, jugador.col_h)
+                    local upFree = not colisiona(jugador.x - jugador.col_w/2, jugador.y + (8 * jugador.escala) - 24 - jugador.col_h, jugador.col_w, jugador.col_h)
+                    local downFree = not colisiona(jugador.x - jugador.col_w/2, jugador.y + (8 * jugador.escala) + 24 - jugador.col_h, jugador.col_w, jugador.col_h)
+                    
+                    local blockedDir = lastIndicatedDirection
+                    local direccionEvasion = nil
+                    
+                    -- Evitar a toda costa recomendar la dirección bloqueada
+                    if blockedDir == "derecha" or blockedDir == "izquierda" then
+                        if upFree then direccionEvasion = "arriba"
+                        elseif downFree then direccionEvasion = "abajo"
+                        elseif blockedDir == "derecha" and leftFree then direccionEvasion = "izquierda"
+                        elseif blockedDir == "izquierda" and rightFree then direccionEvasion = "derecha"
+                        end
+                    elseif blockedDir == "arriba" or blockedDir == "abajo" then
+                        if rightFree then direccionEvasion = "derecha"
+                        elseif leftFree then direccionEvasion = "izquierda"
+                        elseif blockedDir == "arriba" and downFree then direccionEvasion = "abajo"
+                        elseif blockedDir == "abajo" and upFree then direccionEvasion = "arriba"
                         end
                     end
-                elseif zombieVivo then
-                    -- Si ya tiene el bate pero el zombie está vivo, objetivoActual será la posición del zombie
-                    objetivoActual = zombiePos
+                    
+                    if not direccionEvasion then
+                        if rightFree then direccionEvasion = "derecha"
+                        elseif leftFree then direccionEvasion = "izquierda"
+                        elseif upFree then direccionEvasion = "arriba"
+                        elseif downFree then direccionEvasion = "abajo"
+                        else direccionEvasion = "derecha"
+                        end
+                    end
+                    
+                    local audioAPlayar = "obstaculo_" .. direccionEvasion
+                    if audioAPlayar and _G.reproducirVoz then
+                        _G.reproducirVoz(audioAPlayar)
+                        lastIndicatedDirection = direccionEvasion
+                    end
                 else
-                    -- Si el zombie murió, objetivoActual será el pickup más cercano que quede en el mapa (vendas o comida)
-                    local minDist = math.huge
-                    local nearestPickup = nil
-                    for _, p in ipairs(pickups) do
-                        if p.tipo == "bandage" or p.tipo == "canned-soup" or p.tipo == "canned-food" then
-                            local dx = jugador.x - p.cx
-                            local dy = jugador.y - p.cy
-                            local dist = math.sqrt(dx * dx + dy * dy)
-                            if dist < minDist then
-                                minDist = dist
-                                nearestPickup = { x = p.cx, y = p.cy }
+                    if objetivoActual then
+                        local dx = math.abs(objetivoActual.x - jugador.x)
+                        local dy = math.abs(objetivoActual.y - jugador.y)
+                        local direccion = nil
+                        
+                        if dx > dy then
+                            if objetivoActual.x > jugador.x then
+                                direccion = "derecha"
+                            else
+                                direccion = "izquierda"
+                            end
+                        else
+                            if objetivoActual.y > jugador.y then
+                                direccion = "abajo"
+                            else
+                                direccion = "arriba"
                             end
                         end
-                    end
-                    objetivoActual = nearestPickup
-                end
-                
-                -- 3. Si objetivoActual no es nil, calcular la dirección
-                if objetivoActual then
-                    local dx = math.abs(objetivoActual.x - jugador.x)
-                    local dy = math.abs(objetivoActual.y - jugador.y)
-                    local direccion = nil
-                    
-                    if dx > dy then
-                        if objetivoActual.x > jugador.x then
-                            direccion = "derecha"
-                        else
-                            direccion = "izquierda"
+                        
+                        local audioAPlayar = direccion
+                        if objetivoActual == zombiePos and distZombie < 120 then
+                            audioAPlayar = "enemigo_" .. direccion
                         end
-                    else
-                        if objetivoActual.y > jugador.y then
-                            direccion = "abajo"
-                        else
-                            direccion = "arriba"
+                        
+                        if audioAPlayar and _G.reproducirVoz then
+                            _G.reproducirVoz(audioAPlayar)
+                            lastIndicatedDirection = direccion
                         end
-                    end
-                    
-                    -- 4. Reproducir el audio de la dirección correspondiente
-                    if direccion and _G.reproducirVoz then
-                        _G.reproducirVoz(direccion)
                     end
                 end
                 tutorialVoiceTimer = 4.0
             else
-                -- Si hay un diálogo explicativo sonando, volver a intentar en 1.5 segundos
+                -- Si está hablando otra cosa, reintentar pronto
                 tutorialVoiceTimer = 1.5
             end
         end
     else
         tutorialVoiceTimer = 4.0
+        stuckAccumulator = 0
+        obstaculoDetectado = false
+        lastIndicatedDirection = nil
     end
     
     -- Manejo del temporizador global para la animación activa
