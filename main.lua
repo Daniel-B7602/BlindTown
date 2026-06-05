@@ -57,6 +57,7 @@ local voiceQueue = {}
 
 -- Flags y estado del tutorial
 _G.tutorialActive = false
+_G.mission01Active = false
 _G.tutorialFlags = {
     moved = false,
     pickedAny = false,
@@ -389,15 +390,30 @@ local function iniciarNivel(rutaMapa)
     messageTimer = 0
     gameState = "play"
 
+    bloqueado_eje = nil
+    direccion_bloqueada = nil
+    direccion_escape = nil
+    posicion_escape_inicio = nil
+    lastIndicatedDirection = nil
+
     if rutaMapa == "levels/tutorial.lua" then
         _G.tutorialActive = true
+        _G.mission01Active = false
         _G.resetTutorialFlags()
         tutorialVoiceTimer = 10.0 -- Dar tiempo para que suene la voz de bienvenida/inicial
         if _G.reproducirVoz then
             _G.reproducirVoz("voz_tutorial_movimiento_alex")
         end
+    elseif rutaMapa == "levels/mission01.lua" then
+        _G.tutorialActive = false
+        _G.mission01Active = true
+        tutorialVoiceTimer = 6.0 -- Dar tiempo para que suene la bienvenida
+        if _G.reproducirVoz then
+            _G.reproducirVoz("voz_bienvenida_mision01")
+        end
     else
         _G.tutorialActive = false
+        _G.mission01Active = false
         if _G.detenerVoz then
             _G.detenerVoz()
         end
@@ -515,6 +531,11 @@ function love.load()
     cargarSonido("voz_tutorial_info_pickables", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_info_pickables.wav")
     cargarSonido("voz_tutorial_movimiento_alex", "assets/audio/guide_voice/tutorial_voice/voz_tutorial_movimiento_alex.wav")
 
+    -- Voces de Misión 1
+    cargarSonido("voz_bienvenida_mision01", "assets/audio/guide_voice/mission01_voice/voz_bienvenida_mision01.wav")
+    cargarSonido("voz_fin_partida_mision01", "assets/audio/guide_voice/mission01_voice/voz_fin_partida_mision01.wav")
+    cargarSonido("voz_fin_juego_opciones", "assets/audio/guide_voice/mission01_voice/voz_fin_juego_opciones.wav")
+
     -- Cargar audios de indicación de dirección para el tutorial
     cargarSonido("abajo", "assets/audio/guide_voice/indication_voice/abajo.wav")
     cargarSonido("arriba", "assets/audio/guide_voice/indication_voice/arriba.wav")
@@ -612,6 +633,7 @@ function love.update(dt)
         gameState = state
         if state == "gameover" then
             _G.tutorialActive = false
+            _G.mission01Active = false
             if _G.reproducirVoz then
                 _G.reproducirVoz("voz_estas_muerto")
             end
@@ -650,8 +672,29 @@ function love.update(dt)
         end
     end
 
-    -- Guía por voz del tutorial hacia los pickables y enemigos (con evasión de obstáculos)
-    if _G.tutorialActive and gameState == "play" then
+    -- Verificar si la misión 1 ha finalizado
+    if _G.mission01Active and mapa and mapa.ruta == "levels/mission01.lua" then
+        local allPickupsGrabbed = (#pickups == 0)
+        local zombieKilled = true
+        for _, z in ipairs(zombieModule.zombies) do
+            if z.activo or z.vida > 0 then
+                zombieKilled = false
+                break
+            end
+        end
+        
+        if allPickupsGrabbed and zombieKilled then
+            gameState = "mission01_complete"
+            _G.mission01Active = false
+            if _G.reproducirVoz then
+                _G.reproducirVoz("voz_fin_partida_mision01")
+                _G.reproducirVoz("voz_fin_juego_opciones", true)
+            end
+        end
+    end
+
+    -- Guía por voz del tutorial/misión 1 hacia los pickables y enemigos (con evasión de obstáculos)
+    if (_G.tutorialActive or _G.mission01Active) and gameState == "play" then
         -- 1. Calcular el objetivo actual dinámicamente
         local objetivoActual = nil
         
@@ -664,18 +707,20 @@ function love.update(dt)
             end
         end
         
-        -- Verificar si el zombie está vivo y calcular la distancia hacia él
+        -- Verificar si el zombie está vivo y calcular la distancia hacia el más cercano
         local zombieVivo = false
         local zombiePos = nil
         local distZombie = math.huge
         for _, z in ipairs(zombieModule.zombies) do
             if z.activo and z.vida > 0 then
-                zombieVivo = true
-                zombiePos = { x = z.x, y = z.y }
                 local dx = jugador.x - z.x
                 local dy = jugador.y - z.y
-                distZombie = math.sqrt(dx * dx + dy * dy)
-                break
+                local dist = math.sqrt(dx * dx + dy * dy)
+                if dist < distZombie then
+                    distZombie = dist
+                    zombiePos = { x = z.x, y = z.y }
+                    zombieVivo = true
+                end
             end
         end
         
@@ -901,6 +946,27 @@ function love.draw()
         love.graphics.print("1. Ir a la misión", love.graphics.getWidth() / 2 - 110, 290, 0, 1.8, 1.8)
         love.graphics.print("2. Ir al menú principal", love.graphics.getWidth() / 2 - 140, 340, 0, 1.8, 1.8)
         return
+    elseif gameState == "mission01_complete" then
+        love.graphics.clear(0, 0, 0)
+        
+        love.graphics.setColor(1, 1, 1, 1)
+        local screenW = love.graphics.getWidth()
+        local font = love.graphics.getFont()
+        
+        local scaleTitle = 4
+        local titleText = "Fin del Juego"
+        local titleW = font:getWidth(titleText) * scaleTitle
+        love.graphics.print(titleText, (screenW - titleW) / 2, 180, 0, scaleTitle, scaleTitle)
+        
+        local scaleOpt = 1.8
+        local opt1Text = "1. Volver al menu"
+        local opt1W = font:getWidth(opt1Text) * scaleOpt
+        love.graphics.print(opt1Text, (screenW - opt1W) / 2, 290, 0, scaleOpt, scaleOpt)
+        
+        local opt2Text = "2. Salir del juego"
+        local opt2W = font:getWidth(opt2Text) * scaleOpt
+        love.graphics.print(opt2Text, (screenW - opt2W) / 2, 340, 0, scaleOpt, scaleOpt)
+        return
     end
 
     love.graphics.clear(0.1, 0.1, 0.1) -- Fondo gris oscuro de pruebas
@@ -1042,6 +1108,7 @@ function love.keypressed(key)
         elseif key == "2" then
             gameState = "menu"
             _G.tutorialActive = false
+            _G.mission01Active = false
             if _G.reproducirVoz then
                 _G.reproducirVoz("bienvenido_a_blindtown")
             end
@@ -1052,9 +1119,21 @@ function love.keypressed(key)
         elseif key == "2" then
             gameState = "menu"
             _G.tutorialActive = false
+            _G.mission01Active = false
             if _G.reproducirVoz then
                 _G.reproducirVoz("bienvenido_a_blindtown")
             end
+        end
+    elseif gameState == "mission01_complete" then
+        if key == "1" then
+            gameState = "menu"
+            _G.tutorialActive = false
+            _G.mission01Active = false
+            if _G.reproducirVoz then
+                _G.reproducirVoz("bienvenido_a_blindtown")
+            end
+        elseif key == "2" then
+            love.event.quit()
         end
     elseif gameState == "play" then
         if key == "c" then
@@ -1062,9 +1141,13 @@ function love.keypressed(key)
         elseif key == "escape" then
             gameState = "menu"
             _G.tutorialActive = false
+            _G.mission01Active = false
             if _G.reproducirVoz then
                 _G.reproducirVoz("bienvenido_a_blindtown")
             end
+        elseif key == "space" then
+            tutorialVoiceTimer = 0
+            alexModule.keypressed(key, mostrarMensaje)
         else
             alexModule.keypressed(key, mostrarMensaje)
         end

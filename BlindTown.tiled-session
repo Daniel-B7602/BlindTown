@@ -85,16 +85,16 @@
         },
         "levels/tutorial.tmx": {
             "expandedObjectLayers": [
-                6,
                 4,
+                6,
                 5,
                 7
             ],
             "scale": 1,
             "selectedLayer": 5,
             "viewCenter": {
-                "x": 440,
-                "y": 204
+                "x": 400,
+                "y": 303.5
             }
         }
     },

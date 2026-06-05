@@ -193,8 +193,8 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
                 if _G.reproducirSonido then _G.reproducirSonido("collision") end
                 j.tiempoColisionSound = 0.35
                 
-                -- Si el tutorial está activo, también reproducir la voz de evasión de obstáculo
-                if _G.tutorialActive then
+                -- Si el tutorial o la misión 01 está activa, también reproducir la voz de evasión de obstáculo
+                if _G.tutorialActive or _G.mission01Active then
                     local rightFree = not colisiona(j.x + 24 - j.col_w/2, j.y + (8 * j.escala) - j.col_h, j.col_w, j.col_h)
                     local leftFree = not colisiona(j.x - 24 - j.col_w/2, j.y + (8 * j.escala) - j.col_h, j.col_w, j.col_h)
                     local upFree = not colisiona(j.x - j.col_w/2, j.y + (8 * j.escala) - 24 - j.col_h, j.col_w, j.col_h)
@@ -265,7 +265,7 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
         local distY = j.y - p.cy
         local dist = math.sqrt(distX * distX + distY * distY)
         
-        if dist < 15 then
+        if dist < 20 then
             if _G.reproducirSonido then _G.reproducirSonido("pickup") end
             table.insert(j.inventory, {
                 tipo = p.tipo,

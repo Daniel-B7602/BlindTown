@@ -76,7 +76,7 @@ function zombieModule.update(dt, colisiona, jugador, cambiarGameState)
                 local dist = math.sqrt(distX * distX + distY * distY)
                 
                 local tieneBate = true
-                if _G.tutorialActive then
+                if _G.tutorialActive or _G.mission01Active then
                     tieneBate = false
                     for _, item in ipairs(jugador.inventory) do
                         if item.tipo == "bat" then
