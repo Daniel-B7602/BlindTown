@@ -817,6 +817,23 @@ function love.update(dt)
                         
                         local audioAPlayar = direccion
                         if objetivoActual == zombiePos and distZombie < 120 then
+                            local diffX = math.abs(zombiePos.x - jugador.x)
+                            local diffY = math.abs(zombiePos.y - jugador.y)
+                            local umbral = 20
+                            
+                            if diffY > umbral then
+                                if zombiePos.y < jugador.y then
+                                    direccion = "arriba"
+                                else
+                                    direccion = "abajo"
+                                end
+                            else
+                                if zombiePos.x > jugador.x then
+                                    direccion = "derecha"
+                                else
+                                    direccion = "izquierda"
+                                end
+                            end
                             audioAPlayar = "enemigo_" .. direccion
                         end
                         
