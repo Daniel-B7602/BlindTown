@@ -10,6 +10,7 @@ local gameState = "menu" -- "menu" o "play"
 local virtualW = 800
 local virtualH = 600
 local canvas
+local ultimoAvisoEnemigo = nil
 
 -- Módulos de juego (Alex y Zombie) refactorizados
 local alexModule = require("alex")
@@ -798,6 +799,41 @@ function love.update(dt)
             end
         end
         
+        -- Detectar cambio de posición del enemigo o entrada en rango cercano para actualizar el audio inmediatamente
+        local avisoEnemigoActual = nil
+        local enCombate = false
+        if jugador.estado == "attack" or jugador.tiempoInmune > 0 then
+            enCombate = true
+        end
+        for _, z in ipairs(zombieModule.zombies) do
+            if z.activo and z.vida > 0 and z.estado == "attack" then
+                enCombate = true
+            end
+        end
+
+        if zombieVivo and zombiePos and distZombie < 45 then
+            local diffX = math.abs(zombiePos.x - jugador.x)
+            local diffY = math.abs(zombiePos.y - jugador.y)
+            if diffY < 15 and diffX >= 15 then
+                avisoEnemigoActual = (zombiePos.x > jugador.x) and "enemigo_derecha" or "enemigo_izquierda"
+            elseif diffX < 15 and diffY >= 15 then
+                avisoEnemigoActual = (zombiePos.y > jugador.y) and "enemigo_abajo" or "enemigo_arriba"
+            elseif diffY < 15 and diffX < 15 then
+                if diffY < diffX then
+                    avisoEnemigoActual = (zombiePos.x > jugador.x) and "enemigo_derecha" or "enemigo_izquierda"
+                else
+                    avisoEnemigoActual = (zombiePos.y > jugador.y) and "enemigo_abajo" or "enemigo_arriba"
+                end
+            end
+        end
+
+        if avisoEnemigoActual ~= ultimoAvisoEnemigo then
+            if avisoEnemigoActual ~= nil and not enCombate then
+                tutorialVoiceTimer = 0.1 -- Forzar aviso inmediato al cambiar de posición o entrar en rango
+            end
+            ultimoAvisoEnemigo = avisoEnemigoActual
+        end
+
         if not tieneBate then
             -- Si el jugador NO tiene el bate en el inventario, objetivoActual será la posición del bate
             for _, p in ipairs(pickups) do
@@ -915,6 +951,7 @@ function love.update(dt)
                         _G.reproducirVoz(audioAPlayar)
                         lastIndicatedDirection = direccion_escape
                     end
+                    tutorialVoiceTimer = 4.0
                 else
                     -- MODO NORMAL: indicar dirección hacia el objetivo
                     if objetivoActual then
@@ -937,35 +974,39 @@ function love.update(dt)
                         end
                         
                         local audioAPlayar = direccion
-                        if objetivoActual == zombiePos and distZombie < 120 then
-                            local diffX = math.abs(zombiePos.x - jugador.x)
-                            local diffY = math.abs(zombiePos.y - jugador.y)
-                            
-                            if diffY < 40 then
-                                -- Priorizar el eje X cuando la distancia vertical es menor a 40 píxeles
-                                if zombiePos.x > jugador.x then
-                                    direccion = "derecha"
+                        local esAvisoEnemigo = false
+                        if objetivoActual == zombiePos and distZombie < 45 then
+                            if avisoEnemigoActual then
+                                if not enCombate then
+                                    audioAPlayar = avisoEnemigoActual
+                                    esAvisoEnemigo = true
+                                    direccion = avisoEnemigoActual:match("enemigo_(.+)") or direccion
                                 else
-                                    direccion = "izquierda"
+                                    audioAPlayar = nil
                                 end
                             else
-                                -- Priorizar el eje Y
-                                if zombiePos.y < jugador.y then
-                                    direccion = "arriba"
+                                -- Si están en diagonal o no alineados, no indicar "enemigo_", sino la navegación normal para alinear (solo si no en combate)
+                                if not enCombate then
+                                    audioAPlayar = direccion
                                 else
-                                    direccion = "abajo"
+                                    audioAPlayar = nil
                                 end
                             end
-                            audioAPlayar = "enemigo_" .. direccion
                         end
                         
                         if audioAPlayar and _G.reproducirVoz then
                             _G.reproducirVoz(audioAPlayar)
                             lastIndicatedDirection = direccion
+                            if esAvisoEnemigo then
+                                tutorialVoiceTimer = 3.0
+                            else
+                                tutorialVoiceTimer = 4.0
+                            end
+                        else
+                            tutorialVoiceTimer = 1.5
                         end
                     end
                 end
-                tutorialVoiceTimer = 4.0
             else
                 -- Si está hablando otra cosa, reintentar pronto
                 tutorialVoiceTimer = 1.5
@@ -1246,7 +1287,9 @@ function love.keypressed(key)
                 _G.reproducirVoz("bienvenido_a_blindtown")
             end
         elseif key == "space" then
-            tutorialVoiceTimer = 0
+            if jugador.equipo ~= "bat" then
+                tutorialVoiceTimer = 0
+            end
             alexModule.keypressed(key, mostrarMensaje)
         else
             alexModule.keypressed(key, mostrarMensaje)

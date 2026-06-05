@@ -84,6 +84,7 @@ function alexModule.update(dt, colisiona, zombies, pickups, mostrarMensaje, camb
                                 if _G.reproducirSonido then _G.reproducirSonido("hit_bat") end
                                 z.vida = z.vida - 1
                                 z.tiempoFlashRed = 0.2
+                                z.alertado = true
                                 
                                 -- Retroceso físico
                                 local kx, ky = 0, 0

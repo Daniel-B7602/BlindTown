@@ -18,7 +18,8 @@ local function crearZombi(startX, startY, colisiona)
         tiempoUltimoAtaque = 0,
         tiempoFlashRed = 0,
         tiempoMuerte = 0,
-        activo = true
+        activo = true,
+        alertado = false
     }
     
     -- Escaneo inteligente de colisiones para spawn seguro del zombi (evitar paredes)
@@ -86,7 +87,7 @@ function zombieModule.update(dt, colisiona, jugador, cambiarGameState)
                     end
                 end
                 
-                if tieneBate and dist < z.rangoDeteccion and jugador.vida > 0 then
+                if z.alertado and tieneBate and dist < z.rangoDeteccion and jugador.vida > 0 then
                     z.estado = "walk"
                     
                     if math.abs(distX) > math.abs(distY) then
