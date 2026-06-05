@@ -6,6 +6,11 @@ local mapa
 local debug_colisiones = false
 local gameState = "menu" -- "menu" o "play"
 
+-- Configuración de resolución virtual (Letterboxing)
+local virtualW = 800
+local virtualH = 600
+local canvas
+
 -- Módulos de juego (Alex y Zombie) refactorizados
 local alexModule = require("alex")
 local zombieModule = require("zombie")
@@ -84,8 +89,17 @@ local direccion_escape = nil       -- "derecha"/"izquierda"/"arriba"/"abajo": la
 local posicion_escape_inicio = nil -- {x, y}: posición donde se activó el escape (para medir avance lateral)
 local lastIndicatedDirection = nil -- Última dirección indicada por la voz (para el timer de voz)
 
+_G.escapeLockTimer = 0
+_G.lockedEscapeDir = nil
+_G.lockedEscapeAxis = nil
+
 -- Función global para activar la alerta de obstáculo (invocada desde alex.lua al colisionar)
 _G.activarAlertaObstaculo = function(dir_bloqueada, dir_evasion)
+    -- Si ya estamos en un bloqueo activo de escape, no reiniciar el temporizador ni cambiar de dirección
+    if _G.escapeLockTimer and _G.escapeLockTimer > 0 then
+        return
+    end
+
     -- dir_bloqueada: dirección en la que el jugador chocó ("derecha", "izquierda", "arriba", "abajo")
     -- dir_evasion: la salida óptima calculada por alex.lua
     if dir_bloqueada == "derecha" or dir_bloqueada == "izquierda" then
@@ -98,6 +112,11 @@ _G.activarAlertaObstaculo = function(dir_bloqueada, dir_evasion)
     posicion_escape_inicio = { x = jugador.x, y = jugador.y }
     lastIndicatedDirection = dir_evasion
     tutorialVoiceTimer = 0.1  -- Disparar la voz casi inmediatamente
+
+    -- Iniciar el temporizador de bloqueo de 1.5 segundos
+    _G.escapeLockTimer = 1.5
+    _G.lockedEscapeDir = dir_evasion
+    _G.lockedEscapeAxis = bloqueado_eje
 end
 
 local function mostrarMensaje(texto)
@@ -395,6 +414,9 @@ local function iniciarNivel(rutaMapa)
     direccion_escape = nil
     posicion_escape_inicio = nil
     lastIndicatedDirection = nil
+    _G.escapeLockTimer = 0
+    _G.lockedEscapeDir = nil
+    _G.lockedEscapeAxis = nil
 
     if rutaMapa == "levels/tutorial.lua" then
         _G.tutorialActive = true
@@ -598,6 +620,10 @@ function love.load()
         voiceQueue = {}
     end
 
+    -- Inicializar el lienzo virtual para el escalado (Letterboxing)
+    canvas = love.graphics.newCanvas(virtualW, virtualH)
+    canvas:setFilter("nearest", "nearest")
+
     -- Reproducir audio de bienvenida al abrir el juego
     if _G.reproducirVoz then
         _G.reproducirVoz("bienvenido_a_blindtown")
@@ -618,6 +644,24 @@ function love.update(dt)
 
     if gameState ~= "play" then
         return
+    end
+
+    -- Decrementar el temporizador de bloqueo de escape si está activo
+    if _G.escapeLockTimer and _G.escapeLockTimer > 0 then
+        _G.escapeLockTimer = _G.escapeLockTimer - dt
+        if _G.escapeLockTimer <= 0 then
+            _G.escapeLockTimer = 0
+            _G.lockedEscapeDir = nil
+            _G.lockedEscapeAxis = nil
+            bloqueado_eje = nil
+            direccion_bloqueada = nil
+            direccion_escape = nil
+            posicion_escape_inicio = nil
+        else
+            -- Forzar que la dirección de escape siga fija durante el bloqueo
+            bloqueado_eje = _G.lockedEscapeAxis
+            direccion_escape = _G.lockedEscapeDir
+        end
     end
 
     -- Actualizar el mapa (animaciones de tiles, etc.)
@@ -645,6 +689,36 @@ function love.update(dt)
 
     -- Actualizar módulos delegados
     alexModule.update(dt, colisiona, zombieModule.zombies, pickups, mostrarMensaje, cambiarGameState)
+
+    -- Restricción de coordenadas (clamping) para que Alex no pueda salir de los límites de la pantalla virtual (800x600)
+    local spriteW = 32 * jugador.escala
+    local spriteH = 32 * jugador.escala
+    local estado = jugador.estado
+    local direccion = jugador.direccion
+    local animKey = estado
+    if jugador.equipo == "bat" then
+        if estado == "idle" or estado == "run" then
+            animKey = estado .. "_nohands"
+        elseif estado == "attack" then
+            animKey = "punch_nohands"
+        end
+    end
+    if _G.animaciones and _G.animaciones.banco[animKey] and _G.animaciones.banco[animKey][direccion] then
+        local anim = _G.animaciones.banco[animKey][direccion]
+        spriteW = anim.w * jugador.escala
+        spriteH = anim.h * jugador.escala
+    end
+
+    local minX = spriteW / 2
+    local maxX = virtualW - spriteW / 2
+    local minY = spriteH / 2
+    local maxY = virtualH - spriteH / 2
+
+    if jugador.x < minX then jugador.x = minX end
+    if jugador.x > maxX then jugador.x = maxX end
+    if jugador.y < minY then jugador.y = minY end
+    if jugador.y > maxY then jugador.y = maxY end
+
     zombieModule.update(dt, colisiona, jugador, cambiarGameState)
 
     -- Calcular movimiento real de Alex en este frame
@@ -757,7 +831,7 @@ function love.update(dt)
         _G.objetivoActual = objetivoActual
 
         -- 2. Verificar si el estado de escape debe desactivarse
-        if bloqueado_eje and objetivoActual and posicion_escape_inicio then
+        if bloqueado_eje and objetivoActual and posicion_escape_inicio and (_G.escapeLockTimer or 0) <= 0 then
             -- Medir cuánto ha avanzado lateralmente el jugador desde que se activó el escape
             local avanceLateral = 0
             if bloqueado_eje == "Y" then
@@ -792,45 +866,47 @@ function love.update(dt)
             if not voiceIsPlaying or isDirectionVoice then
                 if bloqueado_eje and direccion_escape then
                     -- MODO ESCAPE: indicar estrictamente la dirección de escape del obstáculo
-                    -- Recalcular por si las condiciones del mapa cambiaron
-                    local rightFree = not colisiona(jugador.x + 24 - jugador.col_w/2, jugador.y + (8 * jugador.escala) - jugador.col_h, jugador.col_w, jugador.col_h)
-                    local leftFree = not colisiona(jugador.x - 24 - jugador.col_w/2, jugador.y + (8 * jugador.escala) - jugador.col_h, jugador.col_w, jugador.col_h)
-                    local upFree = not colisiona(jugador.x - jugador.col_w/2, jugador.y + (8 * jugador.escala) - 24 - jugador.col_h, jugador.col_w, jugador.col_h)
-                    local downFree = not colisiona(jugador.x - jugador.col_w/2, jugador.y + (8 * jugador.escala) + 24 - jugador.col_h, jugador.col_w, jugador.col_h)
-                    
-                    -- Verificar que la dirección de escape sigue siendo válida
-                    local escapeValida = false
-                    if direccion_escape == "derecha" and rightFree then escapeValida = true
-                    elseif direccion_escape == "izquierda" and leftFree then escapeValida = true
-                    elseif direccion_escape == "arriba" and upFree then escapeValida = true
-                    elseif direccion_escape == "abajo" and downFree then escapeValida = true
-                    end
-                    
-                    if not escapeValida then
-                        -- Recalcular dirección de escape excluyendo la dirección bloqueada
-                        local nuevaEscape = nil
-                        if bloqueado_eje == "Y" then
-                            -- Bloqueado en Y: probar laterales (derecha/izquierda)
-                            if rightFree and leftFree and objetivoActual then
-                                local dR = math.abs((jugador.x + 24) - objetivoActual.x)
-                                local dL = math.abs((jugador.x - 24) - objetivoActual.x)
-                                nuevaEscape = (dR < dL) and "derecha" or "izquierda"
-                            elseif rightFree then nuevaEscape = "derecha"
-                            elseif leftFree then nuevaEscape = "izquierda"
-                            end
-                        elseif bloqueado_eje == "X" then
-                            -- Bloqueado en X: probar laterales (arriba/abajo)
-                            if upFree and downFree and objetivoActual then
-                                local dU = math.abs((jugador.y - 24) - objetivoActual.y)
-                                local dD = math.abs((jugador.y + 24) - objetivoActual.y)
-                                nuevaEscape = (dU < dD) and "arriba" or "abajo"
-                            elseif upFree then nuevaEscape = "arriba"
-                            elseif downFree then nuevaEscape = "abajo"
-                            end
+                    if (_G.escapeLockTimer or 0) <= 0 then
+                        -- Recalcular por si las condiciones del mapa cambiaron (solo si no está congelado)
+                        local rightFree = not colisiona(jugador.x + 24 - jugador.col_w/2, jugador.y + (8 * jugador.escala) - jugador.col_h, jugador.col_w, jugador.col_h)
+                        local leftFree = not colisiona(jugador.x - 24 - jugador.col_w/2, jugador.y + (8 * jugador.escala) - jugador.col_h, jugador.col_w, jugador.col_h)
+                        local upFree = not colisiona(jugador.x - jugador.col_w/2, jugador.y + (8 * jugador.escala) - 24 - jugador.col_h, jugador.col_w, jugador.col_h)
+                        local downFree = not colisiona(jugador.x - jugador.col_w/2, jugador.y + (8 * jugador.escala) + 24 - jugador.col_h, jugador.col_w, jugador.col_h)
+                        
+                        -- Verificar que la dirección de escape sigue siendo válida
+                        local escapeValida = false
+                        if direccion_escape == "derecha" and rightFree then escapeValida = true
+                        elseif direccion_escape == "izquierda" and leftFree then escapeValida = true
+                        elseif direccion_escape == "arriba" and upFree then escapeValida = true
+                        elseif direccion_escape == "abajo" and downFree then escapeValida = true
                         end
                         
-                        if nuevaEscape then
-                            direccion_escape = nuevaEscape
+                        if not escapeValida then
+                            -- Recalcular dirección de escape excluyendo la dirección bloqueada
+                            local nuevaEscape = nil
+                            if bloqueado_eje == "Y" then
+                                -- Bloqueado en Y: probar laterales (derecha/izquierda)
+                                if rightFree and leftFree and objetivoActual then
+                                    local dR = math.abs((jugador.x + 24) - objetivoActual.x)
+                                    local dL = math.abs((jugador.x - 24) - objetivoActual.x)
+                                    nuevaEscape = (dR < dL) and "derecha" or "izquierda"
+                                elseif rightFree then nuevaEscape = "derecha"
+                                elseif leftFree then nuevaEscape = "izquierda"
+                                end
+                            elseif bloqueado_eje == "X" then
+                                -- Bloqueado en X: probar laterales (arriba/abajo)
+                                if upFree and downFree and objetivoActual then
+                                    local dU = math.abs((jugador.y - 24) - objetivoActual.y)
+                                    local dD = math.abs((jugador.y + 24) - objetivoActual.y)
+                                    nuevaEscape = (dU < dD) and "arriba" or "abajo"
+                                elseif upFree then nuevaEscape = "arriba"
+                                elseif downFree then nuevaEscape = "abajo"
+                                end
+                            end
+                            
+                            if nuevaEscape then
+                                direccion_escape = nuevaEscape
+                            end
                         end
                     end
                     
@@ -864,19 +940,20 @@ function love.update(dt)
                         if objetivoActual == zombiePos and distZombie < 120 then
                             local diffX = math.abs(zombiePos.x - jugador.x)
                             local diffY = math.abs(zombiePos.y - jugador.y)
-                            local umbral = 20
                             
-                            if diffY > umbral then
-                                if zombiePos.y < jugador.y then
-                                    direccion = "arriba"
-                                else
-                                    direccion = "abajo"
-                                end
-                            else
+                            if diffY < 40 then
+                                -- Priorizar el eje X cuando la distancia vertical es menor a 40 píxeles
                                 if zombiePos.x > jugador.x then
                                     direccion = "derecha"
                                 else
                                     direccion = "izquierda"
+                                end
+                            else
+                                -- Priorizar el eje Y
+                                if zombiePos.y < jugador.y then
+                                    direccion = "arriba"
+                                else
+                                    direccion = "abajo"
                                 end
                             end
                             audioAPlayar = "enemigo_" .. direccion
@@ -915,7 +992,7 @@ function love.update(dt)
     end
 end
 
-function love.draw()
+local function dibujarContenido()
     if gameState == "menu" then
         love.graphics.clear(0, 0, 0)
         
@@ -930,27 +1007,27 @@ function love.draw()
         love.graphics.clear(0, 0, 0)
         
         love.graphics.setColor(1, 0.2, 0.2, 1)
-        love.graphics.print("¡HAS MUERTO!", love.graphics.getWidth() / 2 - 160, 180, 0, 4, 4)
+        love.graphics.print("¡HAS MUERTO!", virtualW / 2 - 160, 180, 0, 4, 4)
         
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.print("1. Reintentar", love.graphics.getWidth() / 2 - 80, 290, 0, 1.8, 1.8)
-        love.graphics.print("2. Volver al Menu Principal", love.graphics.getWidth() / 2 - 170, 340, 0, 1.8, 1.8)
+        love.graphics.print("1. Reintentar", virtualW / 2 - 80, 290, 0, 1.8, 1.8)
+        love.graphics.print("2. Volver al Menu Principal", virtualW / 2 - 170, 340, 0, 1.8, 1.8)
         return
     elseif gameState == "tutorial_complete" then
         love.graphics.clear(0, 0, 0)
         
         love.graphics.setColor(0.2, 1, 0.2, 1)
-        love.graphics.print("Tutorial Finalizado", love.graphics.getWidth() / 2 - 190, 180, 0, 4, 4)
+        love.graphics.print("Tutorial Finalizado", virtualW / 2 - 190, 180, 0, 4, 4)
         
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.print("1. Ir a la misión", love.graphics.getWidth() / 2 - 110, 290, 0, 1.8, 1.8)
-        love.graphics.print("2. Ir al menú principal", love.graphics.getWidth() / 2 - 140, 340, 0, 1.8, 1.8)
+        love.graphics.print("1. Ir a la misión", virtualW / 2 - 110, 290, 0, 1.8, 1.8)
+        love.graphics.print("2. Ir al menú principal", virtualW / 2 - 140, 340, 0, 1.8, 1.8)
         return
     elseif gameState == "mission01_complete" then
         love.graphics.clear(0, 0, 0)
         
         love.graphics.setColor(1, 1, 1, 1)
-        local screenW = love.graphics.getWidth()
+        local screenW = virtualW
         local font = love.graphics.getFont()
         
         local scaleTitle = 4
@@ -1009,8 +1086,8 @@ function love.draw()
     end
     
     -- === Dibujar la barra de inventario centrada en la parte inferior ===
-    local screenW = love.graphics.getWidth()
-    local screenH = love.graphics.getHeight()
+    local screenW = virtualW
+    local screenH = virtualH
     local barScaledW = inventoryBarW * INVENTORY_SCALE
     local barScaledH = inventoryBarH * INVENTORY_SCALE
     local barX = (screenW - barScaledW) / 2
@@ -1087,6 +1164,29 @@ function love.draw()
     
     -- Siempre resetear el color al final
     love.graphics.setColor(1, 1, 1, 1)
+end
+
+function love.draw()
+    -- Redirigir todo el dibujado al lienzo virtual
+    love.graphics.setCanvas(canvas)
+    love.graphics.clear(0, 0, 0)
+    
+    dibujarContenido()
+    
+    -- Volver al destino de pantalla física
+    love.graphics.setCanvas()
+    
+    -- Calcular el escalado uniforme (Letterboxing) manteniendo la relación de aspecto original
+    local screenW = love.graphics.getWidth()
+    local screenH = love.graphics.getHeight()
+    local scale = math.min(screenW / virtualW, screenH / virtualH)
+    
+    local ox = (screenW - virtualW * scale) / 2
+    local oy = (screenH - virtualH * scale) / 2
+    
+    love.graphics.clear(0, 0, 0) -- Pintar barras negras de fondo
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(canvas, ox, oy, 0, scale, scale)
 end
 
 function love.keypressed(key)
